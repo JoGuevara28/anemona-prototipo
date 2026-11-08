@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+pruebas/capturas/
+.DS_Store
+Thumbs.db
+~$*
