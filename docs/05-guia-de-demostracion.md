@@ -2,7 +2,13 @@
 
 Guion para presentar el prototipo en clase o ante Anémona (unos 12–15 minutos). Sigue la historia de un cliente real del estudio: alguien escribe por WhatsApp, contrata, se crea su proyecto y se le da seguimiento.
 
-**Antes de empezar:** abrir `prototipo/index.html`, ingresar como `gabriela` y pulsar **«Restablecer datos de ejemplo»** (menú lateral, abajo). Dejar activada la casilla «Mostrar trazabilidad (RF)».
+**Antes de empezar:**
+
+1. Ejecutar `python servidor/servidor.py` (o doble clic en `iniciar-windows.bat`) y abrir **http://localhost:8000**.
+2. Comprobar que la barra lateral diga «Base de datos SQLite conectada».
+3. Ingresar como `gabriela` y pulsar **«Restablecer datos de ejemplo»** (menú lateral, abajo).
+4. Dejar activada la casilla «Mostrar trazabilidad (RF)».
+5. Tener a mano un PDF cualquiera para el paso de cotizaciones.
 
 ---
 
@@ -41,7 +47,7 @@ Abrir **Apartamento Escazú** (proyecto de ejemplo completo):
 - **Estado:** cambiar a «En ejecución». Mostrar que «Por iniciar» aparece deshabilitado, porque las transiciones están controladas.
 - **Proveedores:** Luz & Forma está *seleccionado* e Iluminarte *considerado* (dos alternativas de iluminación, como describió Gabriela).
 - **Materiales:** cantidades, precio y costo total.
-- **Cotizaciones:** referencia al documento de Canva. El sistema no genera cotizaciones (IE-01).
+- **Cotizaciones:** referencia al documento de Canva. Registrar una nueva **adjuntando un PDF** y abrirla desde el enlace: el documento queda guardado en la base de datos. El sistema no genera cotizaciones (IE-01).
 
 Luego abrir **Anteproyecto casa de playa**: no tiene proveedores ni materiales y es válido (RNF-05).
 
@@ -54,11 +60,18 @@ Luego abrir **Anteproyecto casa de playa**: no tiene proveedores ni materiales y
 1. **Proveedores → Iluminación**: las alternativas disponibles. Abrir una ficha: proyectos en los que participa y «otras alternativas en la misma categoría».
 2. En la barra superior buscar `escazú`. Aparecen los dos proyectos de esa ubicación. Luego buscar `iluminación` para ver proveedores y materiales a la vez.
 
-### 9. Permisos — RF-17 (1 min)
-Salir, entrar como `consulta` e intentar «Registrar cliente». El sistema bloquea la acción e informa que el rol no está autorizado.
+### 9. Permisos y base de datos — RF-17 y RNF-02 (1,5 min)
+1. Salir y entrar como `mariajose`. Mostrar que ve el cliente y el proyecto creados por Gabriela: los datos están en la base, no en el navegador.
+2. Salir, entrar como `consulta` e intentar «Registrar cliente». El sistema bloquea la acción e informa que el rol no está autorizado. El servidor también lo rechaza si alguien intenta saltarse la interfaz.
+3. (Opcional) Abrir `servidor/db/anemona.db` con DB Browser for SQLite y mostrar las tablas.
 
 ### 10. Cierre (1 min)
-Mostrar **Acerca del prototipo** (matriz de trazabilidad y supuestos) y mencionar que hay **28 pruebas de aceptación automáticas aprobadas** (`pruebas/resultados.md`).
+Mostrar **Acerca del prototipo** (tecnología, matriz de trazabilidad y supuestos) y mencionar las pruebas automáticas:
+
+- **59 ejecuciones de pruebas de aceptación** (31 pruebas en dos modos);
+- **29 pruebas de API y base de datos**.
+
+Todas aprobadas (`pruebas/resultados.md`).
 
 ---
 

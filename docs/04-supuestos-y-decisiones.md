@@ -23,8 +23,12 @@ El ERS deja algunas definiciones abiertas, como «estados permitidos», «reglas
 
 | Decisión | Motivo |
 |---|---|
-| Aplicación web sin servidor (HTML, CSS y JavaScript) | El ERS §2.6 no define tecnología. Así se abre con doble clic, sin instalar nada, y se puede evaluar fácilmente. |
-| Datos en `localStorage` del navegador | Basta para demostrar los flujos. En una versión real se reemplazaría por una base de datos compartida. |
+| Aplicación web: HTML, CSS y JavaScript en la interfaz; Python en el servidor | El ERS §2.6 no define tecnología. Una aplicación web funciona en cualquier computadora del estudio sin instalar programas. |
+| Base de datos **SQLite** | Es un solo archivo, viene incluida en Python y basta para un estudio de 2–3 personas. El esquema SQL es estándar y se puede migrar a PostgreSQL si el sistema crece. |
+| Servidor solo con la biblioteca estándar de Python | Nadie del equipo ni del estudio tiene que instalar dependencias para ejecutarlo. |
+| Reglas validadas en interfaz, servidor y base de datos | La interfaz da respuesta inmediata, el servidor impide saltarse las reglas y la base garantiza la integridad (RNF-02). |
+| Catálogos (estados, transiciones, tipos, plan de acción) guardados como tablas | Cuando Gabriela valide los supuestos S-01 a S-04, los cambios se hacen en datos y no en código. |
+| Modo demostración sin servidor | Permite compartir un enlace para mirar el prototipo sin instalar nada. |
 | Etiquetas RF visibles en la interfaz | Facilitan la revisión académica de la trazabilidad. Se pueden ocultar. |
 | Pruebas de aceptación automatizadas | Demuestran objetivamente que se cumplen los criterios de aceptación del ERS. |
 

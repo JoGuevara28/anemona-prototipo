@@ -1,6 +1,22 @@
 # 3. Modelo de datos
 
-Entidades y relaciones que usa el prototipo (`prototipo/js/app.js`, función `seed()`). El modelo es conceptual: describe **qué** información se guarda, no **cómo** se guardaría en una base de datos definitiva.
+Entidades y relaciones del prototipo. El diagrama es **conceptual**: muestra qué información se guarda. La implementación **física** está en [`servidor/db/esquema.sql`](../servidor/db/esquema.sql), en SQLite.
+
+## Tablas de la base de datos
+
+| Tabla | Contenido | Restricciones clave |
+|---|---|---|
+| `usuario`, `sesion` | Personal del estudio y sesiones activas | Usuario único; contraseña como hash PBKDF2 |
+| `tipo_servicio`, `estado_proyecto`, `transicion_estado`, `categoria`, `plan_actividad` | Catálogos (RN-03) y plan de acción | Llaves primarias; transiciones con FK a estados |
+| `potencial_cliente` | RF-01 a RF-03 | Al menos un medio de contacto; estado dentro del catálogo; `convertido_a` → cliente |
+| `cliente` | RF-04 | `UNIQUE(tipo_id, num_id_normal)` |
+| `proyecto` | RF-05 a RF-08 | FK a cliente con `ON DELETE RESTRICT`; tipo y estado con FK a catálogos; área ≥ 0 |
+| `actividad` | RF-13, RF-14 | FK a proyecto; estado dentro del catálogo |
+| `proveedor`, `proveedor_categoria` | RF-09 | Un proveedor tiene una o varias categorías |
+| `material`, `material_proveedor` | RF-10 | Relación muchos a muchos con proveedores |
+| `proyecto_proveedor` | RF-11 | Condición Considerado o Seleccionado; un proveedor no se repite en el mismo proyecto |
+| `proyecto_material` | RF-12 | Cantidad > 0; guarda el precio pactado en ese proyecto |
+| `cotizacion` | RF-16 | Enlace o documento obligatorio; el documento se guarda como BLOB |
 
 ## Diagrama entidad-relación
 

@@ -61,7 +61,7 @@ Anémona Design Studio tiene unos tres años de operar y gran parte de la gesti�
 ## Restricciones
 
 - El sistema **complementa** las herramientas actuales (Canva, Illustrator, Excel) y no las reemplaza.
-- No se definió una tecnología definitiva (ERS §2.6). Por eso el prototipo es una aplicación web sin servidor, fácil de abrir y de evaluar.
+- No se definió una tecnología definitiva (ERS §2.6). Por eso el prototipo es una aplicación web con un servidor liviano en Python y una base de datos SQLite que no requieren instalar nada (ver `08-arquitectura.md`).
 - El ERS no fija requisitos cuantitativos de rendimiento ni de capacidad.
 
 ## Necesidad → solución en el prototipo

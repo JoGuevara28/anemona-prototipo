@@ -23,5 +23,15 @@
 | **Proveedor considerado / seleccionado** | Considerado: alternativa evaluada para un proyecto. Seleccionado: alternativa elegida. |
 | **Plan de acción** | Lista de actividades y entregables sugeridos para un tipo de servicio, con plazos. |
 | **Entregable** | Resultado que se entrega al cliente, por ejemplo un mood board, planos o renders. |
-| **localStorage** | Almacenamiento del navegador donde el prototipo guarda los datos. |
+| **localStorage** | Almacenamiento del navegador donde el modo demostración guarda los datos. |
 | **Playwright** | Herramienta que controla un navegador para automatizar pruebas. |
+| **Base de datos** | Almacén organizado de los datos del sistema. El prototipo usa **SQLite**, que guarda toda la base en un solo archivo. |
+| **SQL** | Lenguaje para definir y consultar bases de datos (`CREATE TABLE`, `SELECT`, `INSERT`…). |
+| **Llave primaria / foránea (PK / FK)** | La PK identifica cada fila de una tabla. La FK apunta a la PK de otra tabla y asegura que la relación exista; por ejemplo, un proyecto apunta a un cliente real. |
+| **Restricción `UNIQUE` / `CHECK`** | Reglas de la base de datos: UNIQUE impide valores repetidos y CHECK limita los valores permitidos. |
+| **API REST** | Forma en que la interfaz se comunica con el servidor: peticiones HTTP (GET, POST, PUT, DELETE) a rutas como `/api/clientes` que intercambian datos en formato JSON. |
+| **JSON** | Formato de texto para intercambiar datos, por ejemplo `{"nombre": "Laura"}`. |
+| **Servidor / cliente** | El servidor guarda los datos y aplica las reglas; el cliente (el navegador) muestra la interfaz. |
+| **Sesión / cookie** | Al ingresar, el servidor entrega un identificador secreto (token) que el navegador guarda en una cookie y envía en cada petición. |
+| **Hash de contraseña (PBKDF2)** | Transformación irreversible de la contraseña. La base guarda el hash, nunca la contraseña real. |
+| **Códigos HTTP** | 200/201 correcto · 400 datos inválidos · 401 sin sesión · 403 sin permiso · 404 no existe. |
