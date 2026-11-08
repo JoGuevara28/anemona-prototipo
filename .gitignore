@@ -4,3 +4,5 @@ pruebas/capturas/
 .DS_Store
 Thumbs.db
 ~$*
+servidor/db/*.db
+servidor/db/*.db-journal
