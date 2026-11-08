@@ -53,7 +53,7 @@ Luego abra **http://localhost:8000** en el navegador. En Windows también puede 
 
 - La base de datos se crea sola en `servidor/db/anemona.db` con los datos de ejemplo.
 - `python servidor/servidor.py --reiniciar` borra la base y vuelve a los datos de ejemplo.
-- `python servidor/servidor.py --host 0.0.0.0` permite abrirlo desde otro dispositivo de la misma red, por ejemplo para que Gabriela lo pruebe desde su computadora en una reunión.
+- `python servidor/servidor.py --host 0.0.0.0` permite abrirlo desde otra computadora de la misma red, por ejemplo para que ambos integrantes trabajen sobre la misma base de datos.
 
 ### Opción B — Modo demostración (sin servidor)
 
@@ -109,6 +109,8 @@ Abra `prototipo/index.html` con doble clic. Funciona igual, pero los datos se gu
 - Es un prototipo: el servidor está pensado para uso local o en una red de confianza, no para publicarse en internet sin HTTPS.
 - La base SQLite es adecuada para un estudio pequeño. Para muchos usuarios simultáneos convendría PostgreSQL, y el esquema SQL se puede trasladar.
 - Quedan fuera del alcance, según el ERS §2.11: la generación de cotizaciones, las notificaciones automáticas, el archivo de fotos y renders y el historial de cambios.
+
+**Usuarios del prototipo:** por ahora solo lo usan los dos integrantes del equipo. Las cuentas `gabriela` y `mariajose` **simulan** los roles de los stakeholders del caso; Anémona no lo utiliza.
 
 ## Declaración de uso de IA
 

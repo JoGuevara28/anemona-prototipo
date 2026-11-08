@@ -11,7 +11,7 @@
 | 3c. Identidad visual | Interfaz con el estilo de Anémona (`docs/09-guia-de-estilo.md`) | ✅ Hecho |
 | 4. Verificación | Pruebas de aceptación (dos modos) y de API y base de datos | ✅ 59/59 y 29/29 |
 | 5. Documentación | Trazabilidad, modelo de datos, arquitectura, supuestos, guía de demo, plan de pruebas | ✅ Hecho |
-| 6. Validación | Reunión con Gabriela: supuestos S-01 a S-12 y prueba de usabilidad (RNF-01) | ⏳ Pendiente |
+| 6. Validación | Reunión con Gabriela: supuestos S-01 a S-12 y prueba de usabilidad (RNF-01) | ⏸ Más adelante (por ahora el prototipo solo lo usa el equipo) |
 | 7. Ajustes | Cambios solicitados en la validación y actualización del ERS (v1.1) | ⏳ Pendiente |
 | 8. Presentación | Demo en clase siguiendo `05-guia-de-demostracion.md` | ⏳ Pendiente |
 
@@ -27,10 +27,9 @@ Cada integrante es responsable de conocer a fondo sus módulos, presentarlos y v
 ## Pendientes
 
 - [ ] Revisar juntos el prototipo completo con la guía de demostración.
-- [ ] Agendar la reunión de validación con Gabriela (WhatsApp) y enviarle el enlace del prototipo.
-- [ ] Recorrer con ella la tabla de supuestos, empezando por **S-04, el plan de acción por tipo de servicio**.
-- [ ] Hacer la prueba de usabilidad RNF-01 y registrar el resultado.
-- [ ] Registrar la validación en `04-supuestos-y-decisiones.md`.
+- [ ] Cada integrante corre el prototipo en su computadora (`python servidor/servidor.py`) y recorre sus módulos.
+- [ ] Mientras no haya validación con Anémona, el equipo usa las cuentas `gabriela` y `mariajose` para simular los roles del caso.
+- [ ] *(Más adelante)* Reunión de validación con Gabriela: tabla de supuestos, empezando por **S-04**, y prueba de usabilidad RNF-01; registrar el resultado en `04-supuestos-y-decisiones.md`.
 - [ ] Ajustar el prototipo según los cambios solicitados y volver a ejecutar las pruebas.
 - [ ] Actualizar el ERS a v1.1 con los supuestos confirmados (estados, transiciones y plan por servicio).
 - [ ] Ensayar la presentación.
