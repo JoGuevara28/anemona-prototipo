@@ -5,38 +5,57 @@ IC5821 Requerimientos de Software · Grupo 01
 Cada prueba (PA-xx) verifica un criterio de aceptación de los casos de uso
 (CU-01 a CU-17) o un requisito no funcional (RNF) del ERS v1.0.
 
+Se ejecutan en los dos modos del prototipo:
+  · servidor       → la interfaz conectada a la API y a la base de datos SQLite
+  · demostración   → la interfaz sola, con los datos en el navegador
+
 Uso:
     pip install playwright
     python -m playwright install chromium
-    python pruebas/pruebas_aceptacion.py
+    python pruebas/pruebas_aceptacion.py            (ambos modos)
+    python pruebas/pruebas_aceptacion.py servidor   (solo uno)
 
 Genera pruebas/resultados.md con el resultado de cada prueba.
 """
+import base64
 import datetime
 import os
 import shutil
 import sys
+import tempfile
+import threading
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
 RAIZ = Path(__file__).resolve().parent.parent
-URL = (RAIZ / "prototipo" / "index.html").as_uri()
+sys.path.insert(0, str(RAIZ / "servidor"))
+import logica as L  # noqa: E402
+import servidor as S  # noqa: E402
+
+URL_DEMO = (RAIZ / "prototipo" / "index.html").as_uri()
+URL = URL_DEMO          # se reemplaza según el modo
+MODO = "demostración"
 SALIDA = Path(__file__).resolve().parent / "resultados.md"
 
 PRUEBAS = []
 
 
-def prueba(codigo, origen, descripcion):
+def prueba(codigo, origen, descripcion, solo=None):
     def deco(fn):
-        PRUEBAS.append((codigo, origen, descripcion, fn))
+        PRUEBAS.append((codigo, origen, descripcion, fn, solo))
         return fn
     return deco
+
+
+def pausa(pg, ms=250):
+    pg.wait_for_timeout(ms)
 
 
 # ---------------------------------------------------------------- helpers
 def entrar(pg, usuario="gabriela", clave="anemona2026"):
     pg.goto(URL)
+    pg.wait_for_selector("#loginf")
     pg.fill("[name=u]", usuario)
     pg.fill("[name=p]", clave)
     pg.click("#loginf button")
@@ -45,7 +64,7 @@ def entrar(pg, usuario="gabriela", clave="anemona2026"):
 
 def ir(pg, hash_):
     pg.evaluate(f"location.hash='#{hash_}'")
-    pg.wait_for_timeout(120)
+    pausa(pg, 150)
 
 
 def guardar(pg):
@@ -170,7 +189,7 @@ def _(pg):
 def _(pg):
     entrar(pg); ir(pg, "clientes")
     pg.click("tr:has-text('Laura Méndez')")
-    pg.wait_for_timeout(120)
+    pausa(pg)
     vista = pg.inner_text("#view")
     check("Apartamento Escazú" in vista and "Mueble de TV a medida" in vista, "la ficha no muestra los proyectos")
 
@@ -227,7 +246,7 @@ def _(pg):
 def _(pg):
     entrar(pg); ir(pg, "proyectos")
     pg.select_option("select[data-chg=pfTipo]", "Remodelación")
-    pg.wait_for_timeout(120)
+    pausa(pg)
     tarjetas = pg.locator(".pcard")
     check(tarjetas.count() == 1, f"se esperaban 1 proyecto, hay {tarjetas.count()}")
     check("Remodelación de cocina" in tarjetas.first.inner_text(), "el resultado no corresponde")
@@ -238,7 +257,7 @@ def _(pg):
 def _(pg):
     entrar(pg); ir(pg, "proyecto-p3")
     pg.select_option("select[data-chg=estadoProy]", "En diseño")
-    pg.wait_for_timeout(150)
+    pausa(pg)
     check("En diseño" in pg.inner_text(".estado-box"), "el estado no se actualizó")
 
 
@@ -261,7 +280,7 @@ def _(pg):
     guardar(pg)
     ir(pg, "proveedores")
     pg.click("button[data-act=provCat][data-id='Electrodomésticos']")
-    pg.wait_for_timeout(120)
+    pausa(pg)
     check("Electro Hogar Prueba" in pg.inner_text("#view"), "no aparece en su categoría")
 
 
@@ -341,7 +360,7 @@ def _(pg):
     check(celda.locator(".ev:has-text('Registro e incorporación')").count() == 1, "el calendario no se actualizó")
     celda.locator(".ev").first.click()
     pg.click(".dialog [data-goto]")
-    pg.wait_for_timeout(150)
+    pausa(pg)
     check(pg.evaluate("location.hash") == "#proyecto-p1", "no abrió el proyecto")
 
 
@@ -351,7 +370,7 @@ def _(pg):
     entrar(pg)
     pg.fill(".search input", "iluminación")
     pg.press(".search input", "Enter")
-    pg.wait_for_timeout(150)
+    pausa(pg)
     vista = pg.inner_text("#view")
     check("Luz & Forma" in vista and "Iluminarte" in vista, "no encontró los proveedores de iluminación")
 
@@ -361,7 +380,7 @@ def _(pg):
     entrar(pg)
     pg.fill(".search input", "zzzz-inexistente")
     pg.press(".search input", "Enter")
-    pg.wait_for_timeout(150)
+    pausa(pg)
     check("No se encontraron resultados" in pg.inner_text("#view"), "no informó la ausencia de resultados")
 
 
@@ -383,10 +402,12 @@ def _(pg):
 @prueba("PA-26", "CU-17 · CA1 / Flujo alterno 1 / RNF-03", "Sin autenticación no se ven datos y las credenciales inválidas se rechazan")
 def _(pg):
     pg.goto(URL + "#clientes")
+    pg.wait_for_selector("#loginf")
     check(pg.locator(".layout").count() == 0, "muestra datos sin autenticación")
     pg.fill("[name=u]", "gabriela")
     pg.fill("[name=p]", "incorrecta")
     pg.click("#loginf button")
+    pg.wait_for_selector("#loginf .msg .errsum")
     check("rechazado" in pg.inner_text("#loginf .msg"), "no rechazó credenciales inválidas")
 
 
@@ -394,7 +415,7 @@ def _(pg):
 def _(pg):
     entrar(pg, "consulta", "consulta"); ir(pg, "clientes")
     pg.click("button[data-act=nuevoCliente]")
-    pg.wait_for_timeout(100)
+    pausa(pg)
     check(not hay_modal(pg), "abrió el formulario de registro")
     check("no autorizada" in toasts(pg), "no informó la falta de permiso")
 
@@ -413,6 +434,48 @@ def _(pg):
     check(not hay_modal(pg) and "Planos de bodega" in pg.inner_text("#view"), "no permitió el proyecto mínimo")
 
 
+
+# ---------------------------------------------------------------- base de datos (solo modo servidor)
+@prueba("PA-29", "RF-16 / IE-01 · base de datos", "El documento adjunto a una cotización se guarda y se puede abrir", solo="servidor")
+def _(pg):
+    entrar(pg); ir(pg, "proyecto-p2")
+    pg.click("button.tab[data-id=cotizaciones]")
+    pg.click("button[data-act=nuevaCot]")
+    pg.fill("[name=codigo]", "COT-2026-PDF")
+    pg.set_input_files("[name=archivo]", files=[{"name": "cotizacion.pdf", "mimeType": "application/pdf", "buffer": b"%PDF-1.4 prueba anemona"}])
+    guardar(pg)
+    enlace = pg.locator("a:has-text('cotizacion.pdf')")
+    check(enlace.count() == 1, "no aparece el enlace al documento")
+    contenido = pg.evaluate("async h => await (await fetch(h)).text()", enlace.get_attribute("href"))
+    check("prueba anemona" in contenido, "el documento descargado no coincide")
+
+
+@prueba("PA-30", "RNF-02 / RNF-03 · base de datos", "Los datos quedan en la base: otra persona los ve al ingresar desde otro navegador", solo="servidor")
+def _(pg):
+    entrar(pg); ir(pg, "clientes")
+    pg.click("button[data-act=nuevoCliente]")
+    pg.fill("[name=nombre]", "Cliente Persistente")
+    pg.select_option("[name=tipoId]", "Cédula")
+    pg.fill("[name=numId]", "3-0333-0444")
+    pg.fill("[name=correo]", "persistente@correo.com")
+    guardar(pg)
+    otro = pg.context.browser.new_context()
+    pg2 = otro.new_page()
+    try:
+        entrar(pg2, "mariajose", "anemona2026"); ir(pg2, "clientes")
+        check("Cliente Persistente" in pg2.inner_text("#view"), "el registro no se guardó en la base de datos")
+    finally:
+        otro.close()
+
+
+@prueba("PA-31", "RF-17 · base de datos", "El servidor rechaza modificaciones de un usuario sin permiso aunque se salte la interfaz", solo="servidor")
+def _(pg):
+    entrar(pg, "consulta", "consulta")
+    estado = pg.evaluate("""async () => (await fetch('/api/clientes', {method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({nombre: 'Intruso', tipoId: 'Cédula', numId: '109990999', telefono: '88889999'})})).status""")
+    check(estado == 403, f"el servidor respondió {estado} en lugar de 403")
+
+
 # ---------------------------------------------------------------- ejecución
 def navegador(p):
     for ruta in ("/usr/bin/google-chrome", shutil.which("chromium") or "", shutil.which("chrome") or ""):
@@ -421,46 +484,86 @@ def navegador(p):
     return p.chromium.launch()
 
 
+def ejecutar_modo(b, modo):
+    global URL, MODO
+    MODO = modo
+    servidor = None
+    if modo == "servidor":
+        bd = Path(tempfile.mkdtemp()) / "pruebas.db"
+        S.Manejador.log_message = lambda *a: None  # sin registro en consola durante las pruebas
+        servidor = S.crear_servidor("127.0.0.1", 0, bd, reiniciar=True)
+        threading.Thread(target=servidor.serve_forever, daemon=True).start()
+        URL = f"http://127.0.0.1:{servidor.server_address[1]}/"
+    else:
+        URL = URL_DEMO
+    resultados = {}
+    for codigo, origen, desc, fn, solo in PRUEBAS:
+        if solo and solo != modo:
+            resultados[codigo] = ("No aplica", "")
+            continue
+        if servidor:  # cada prueba parte de los datos de ejemplo
+            con = L.conectar(bd)
+            L.reiniciar_datos(con)
+            con.close()
+        ctx = b.new_context(viewport={"width": 1366, "height": 900})
+        pg = ctx.new_page()
+        errores_js = []
+        pg.on("pageerror", lambda e: errores_js.append(str(e)))
+        try:
+            fn(pg)
+            if errores_js:
+                raise AssertionError("error de JavaScript: " + errores_js[0])
+            resultados[codigo] = ("Aprobada", "")
+        except Exception as e:  # noqa: BLE001
+            resultados[codigo] = ("Fallida", str(e).splitlines()[0][:160])
+        ctx.close()
+    if servidor:
+        servidor.shutdown()
+    return resultados
+
+
 def main():
-    resultados = []
+    modos = [m for m in ("servidor", "demostración") if len(sys.argv) < 2 or sys.argv[1] in (m, m[:4])]
+    por_modo = {}
     with sync_playwright() as p:
         b = navegador(p)
-        for codigo, origen, desc, fn in PRUEBAS:
-            ctx = b.new_context(viewport={"width": 1366, "height": 900})
-            pg = ctx.new_page()
-            errores_js = []
-            pg.on("pageerror", lambda e: errores_js.append(str(e)))
-            try:
-                fn(pg)
-                if errores_js:
-                    raise AssertionError("error de JavaScript: " + errores_js[0])
-                resultados.append((codigo, origen, desc, "Aprobada", ""))
-            except Exception as e:  # noqa: BLE001
-                resultados.append((codigo, origen, desc, "Fallida", str(e).splitlines()[0][:160]))
-            ctx.close()
+        for modo in modos:
+            por_modo[modo] = ejecutar_modo(b, modo)
         b.close()
 
-    ok = sum(r[3] == "Aprobada" for r in resultados)
-    for r in resultados:
-        print(f"{'✔' if r[3] == 'Aprobada' else '✘'} {r[0]} {r[1]:38} {r[2]}" + (f"  → {r[4]}" if r[4] else ""))
-    print(f"\n{ok}/{len(resultados)} pruebas aprobadas")
+    total = aprobadas = 0
+    for modo, res in por_modo.items():
+        print(f"\n== Modo {modo} ==")
+        for codigo, origen, desc, _, _s in PRUEBAS:
+            r, m = res[codigo]
+            if r == "No aplica":
+                continue
+            total += 1
+            aprobadas += r == "Aprobada"
+            print(f"{'✔' if r == 'Aprobada' else '✘'} {codigo} {origen:38} {desc}" + (f"  → {m}" if m else ""))
+    print(f"\n{aprobadas}/{total} ejecuciones aprobadas")
 
+    icono = {"Aprobada": "✅ Aprobada", "Fallida": "❌ Fallida", "No aplica": "— No aplica"}
     fecha = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
     lineas = [
         "# Resultados de las pruebas de aceptación",
         "",
-        f"Ejecución: {fecha} · **{ok} de {len(resultados)} aprobadas**",
+        f"Ejecución: {fecha} · **{aprobadas} de {total} ejecuciones aprobadas** ({len(PRUEBAS)} pruebas × modos {', '.join(modos)})",
         "",
         "Generado automáticamente por `pruebas/pruebas_aceptacion.py`. Cada prueba verifica un criterio de aceptación (CA) "
-        "de un caso de uso del ERS o un requisito no funcional.",
+        "de un caso de uso del ERS o un requisito no funcional. Las pruebas PA-29 a PA-31 verifican la base de datos y solo aplican al modo servidor.",
         "",
-        "| Código | Origen | Criterio verificado | Resultado |",
-        "|---|---|---|---|",
+        "| Código | Origen | Criterio verificado | " + " | ".join(f"Modo {m}" for m in modos) + " |",
+        "|---|---|---|" + "---|" * len(modos),
     ]
-    for c, o, d, r, m in resultados:
-        lineas.append(f"| {c} | {o} | {d} | {'✅' if r == 'Aprobada' else '❌'} {r}{(' — ' + m) if m else ''} |")
+    for codigo, origen, desc, _, _s in PRUEBAS:
+        celdas = []
+        for m in modos:
+            r, msg = por_modo[m][codigo]
+            celdas.append(icono[r] + (f" — {msg}" if msg else ""))
+        lineas.append(f"| {codigo} | {origen} | {desc} | " + " | ".join(celdas) + " |")
     SALIDA.write_text("\n".join(lineas) + "\n", encoding="utf-8")
-    sys.exit(0 if ok == len(resultados) else 1)
+    sys.exit(0 if aprobadas == total else 1)
 
 
 if __name__ == "__main__":
