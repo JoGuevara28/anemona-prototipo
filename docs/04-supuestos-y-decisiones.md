@@ -29,7 +29,6 @@ El ERS deja algunas definiciones abiertas, como «estados permitidos», «reglas
 | Reglas validadas en interfaz, servidor y base de datos | La interfaz da respuesta inmediata, el servidor impide saltarse las reglas y la base garantiza la integridad (RNF-02). |
 | Catálogos (estados, transiciones, tipos, plan de acción) guardados como tablas | Cuando Gabriela valide los supuestos S-01 a S-04, los cambios se hacen en datos y no en código. |
 | Modo demostración sin servidor | Permite compartir un enlace para mirar el prototipo sin instalar nada. |
-| Etiquetas RF visibles en la interfaz | Facilitan la revisión académica de la trazabilidad. Se pueden ocultar. |
 | Pruebas de aceptación automatizadas | Demuestran objetivamente que se cumplen los criterios de aceptación del ERS. |
 
 ## Registro de validación

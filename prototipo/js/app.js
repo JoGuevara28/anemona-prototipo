@@ -62,7 +62,6 @@ const norm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(
 const digits=s=>String(s||'').replace(/\D/g,'');
 const byFecha=(a,b)=>(a.fecha||'9999').localeCompare(b.fecha||'9999');
 const byId=(c,id)=>DB[c].find(x=>x.id===id);
-const rf=t=>`<span class="rf">${t}</span>`;
 const badge=(t,k)=>`<span class="b ${k||'mute'}">${esc(t)}</span>`;
 const opt=(o,sel)=>{const [v,l]=Array.isArray(o)?o:[o,o];return `<option value="${esc(v)}" ${v===sel?'selected':''}>${esc(l)}</option>`};
 const arcos=(w,c)=>`<svg class="arcos" width="${w}" height="${w*.42}" viewBox="0 0 120 50" fill="none" stroke="${c||'currentColor'}" stroke-width="1.6" stroke-linecap="round"><path d="M6 48 V30 a24 24 0 0 1 48 0 V48"/><path d="M66 48 V30 a24 24 0 0 1 48 0 V48"/></svg>`;
@@ -186,7 +185,7 @@ function seed(){
   return d;
 }
 
-/* ================= Acceso (RF-17) ================= */
+/* ================= Acceso ================= */
 const can=()=>!!(USER&&USER.edit);
 function needEdit(){if(can())return true;toast('Acción no autorizada para el rol «'+USER.rol+'». Este usuario solo puede consultar.','err');return false}
 
@@ -243,7 +242,7 @@ function showErrs(form,errs){
 }
 /* cfg: {title,intro,fields,values,submit,extra,wide,onSubmit(v) => Promise<{errors}|{msg,go}|{cancel}>} */
 function openForm(cfg){
-  const d=modal(`<h2>${esc(cfg.title)} ${cfg.rf?rf(cfg.rf):''}</h2>${cfg.intro?`<p class="intro">${cfg.intro}</p>`:''}
+  const d=modal(`<h2>${esc(cfg.title)}</h2>${cfg.intro?`<p class="intro">${cfg.intro}</p>`:''}
    <form class="fm" novalidate>${cfg.fields.map(fieldHtml).join('')}<div class="errsum" hidden></div>
    <div class="actions">${cfg.extra?`<span class="left">${cfg.extra}</span>`:''}<button type="button" class="btn ghost" data-close>Cancelar</button><button class="btn" type="submit">${esc(cfg.submit||'Guardar')}</button></div></form>`,cfg.wide);
   const form=d.querySelector('form');const btn=form.querySelector('button[type=submit]');
@@ -296,7 +295,7 @@ function vLogin(){
   <div><div class="eyebrow">arquitectura + diseño interior</div><h1>clientes, proyectos y proveedores en <b>un solo lugar</b>.</h1><p>Prototipo funcional basado en el ERS v1.0 — IC5821 Requerimientos de Software, TEC · Grupo 01.</p></div>
   <small class="muted">${MODO==='api'?'Conectado a la base de datos del prototipo.':'Modo demostración: los datos se guardan solo en este navegador.'} Datos de ejemplo ficticios.</small>
   <div class="arcos-fondo">${arcos(380,'#b49372')}</div></div>
-  <div class="frm"><form class="box" id="loginf" novalidate><div class="eyebrow">bienvenida</div><h2>Ingresar ${rf('RF-17')}</h2><p class="muted" style="margin:0">Acceso exclusivo para el personal del estudio.</p>
+  <div class="frm"><form class="box" id="loginf" novalidate><div class="eyebrow">bienvenida</div><h2>Ingresar</h2><p class="muted" style="margin:0">Acceso exclusivo para el personal del estudio.</p>
    <div class="field"><label>Usuario</label><input name="u" autocomplete="username"></div>
    <div class="field"><label>Contraseña</label><input name="p" type="password" autocomplete="current-password"></div>
    <div class="msg"></div>
@@ -305,14 +304,13 @@ function vLogin(){
    ${USERS_DEMO.map(u=>`<tr data-fill="${u.u}|${u.p}"><td>${esc(u.nombre)}<br><small class="muted">${esc(u.rol)}</small></td><td><code>${u.u}</code></td><td><code>${u.p}</code></td></tr>`).join('')}</table></div>
   </form></div></div>`}
 
-const NAV=[['inicio','Inicio',''],['potenciales','Potenciales clientes','RF-01·03'],['clientes','Clientes','RF-04'],['proyectos','Proyectos','RF-05·08'],['calendario','Calendario','RF-13·14'],['proveedores','Proveedores','RF-09'],['materiales','Materiales','RF-10'],['acerca','Acerca del prototipo','']];
+const NAV=[['inicio','Inicio'],['potenciales','Potenciales clientes'],['clientes','Clientes'],['proyectos','Proyectos'],['calendario','Calendario'],['proveedores','Proveedores'],['materiales','Materiales'],['acerca','Acerca del prototipo']];
 const PARENT={cliente:'clientes',proyecto:'proyectos',proveedor:'proveedores',buscar:''};
 function shell(view,content){
   const act=PARENT[view]!==undefined?PARENT[view]:view;
   return `<div class="layout"><aside class="side"><div class="sello">${marca()}</div>
-  <nav>${NAV.map(([k,l,r])=>`<a href="#${k}" class="${act===k?'on':''}"><span>${l}</span>${r?rf(r):''}</a>`).join('')}</nav>
+  <nav>${NAV.map(([k,l])=>`<a href="#${k}" class="${act===k?'on':''}"><span>${l}</span></a>`).join('')}</nav>
   <div class="side-foot"><div class="modo ${MODO}"><i></i><span>${MODO==='api'?'Base de datos SQLite conectada':'Modo demostración (datos en este navegador)'}</span></div>
-  <label><input type="checkbox" data-chg="toggleRF" ${document.body.classList.contains('show-rf')?'checked':''}> Mostrar trazabilidad (RF)</label>
   <button class="linkbtn" data-act="reset">Restablecer datos de ejemplo</button></div></aside>
   <div class="main"><header class="top"><form class="search" data-search><input name="q" placeholder="Buscar clientes, proyectos, proveedores, materiales…" value="${esc(ui.q)}" aria-label="Búsqueda general"></form>
   <div class="user"><span class="avatar">${USER.ini}</span><div><b>${esc(USER.nombre)}</b><small>${esc(USER.rol)}</small></div><button class="btn ghost sm" data-act="logout">Salir</button></div></header>
@@ -334,8 +332,8 @@ function vInicio(){
   return ph(`${sal}, <b>${esc(USER.nombre.split(' ')[0])}</b>`,fecha.charAt(0).toUpperCase()+fecha.slice(1),
     `<button class="btn ghost" data-act="nuevoLead">+ Potencial cliente</button><button class="btn" data-act="nuevoProyecto">+ Nuevo proyecto</button>`)+
   `<div class="kpis">${kpi(activos.length,'Proyectos activos','#proyectos')}${kpi(pend.length,'Tareas pendientes','#calendario')}${kpi(entProx.length,'Entregables en los próximos 14 días','#calendario','madera')}${kpi(atras.length,'Actividades atrasadas','#calendario',atras.length?'alerta':'')}${kpi(leads.length,'Potenciales clientes en seguimiento','#potenciales')}</div>
-  <div class="grid2"><section class="card"><h3>Urgente y próximo ${rf('RF-13·14')}</h3>${urg.length?`<div class="alist">${urg.map(a=>actRow(a,true)).join('')}</div>`:emptyBox('No hay actividades pendientes en los próximos 14 días.')}</section>
-  <section class="card"><h3>Proyectos activos ${rf('RF-06·08')}</h3>${activos.length?`<div class="plist">${activos.map(p=>{const nx=projActs(p.id).find(a=>a.estado!=='Completada');
+  <div class="grid2"><section class="card"><h3>Urgente y próximo</h3>${urg.length?`<div class="alist">${urg.map(a=>actRow(a,true)).join('')}</div>`:emptyBox('No hay actividades pendientes en los próximos 14 días.')}</section>
+  <section class="card"><h3>Proyectos activos</h3>${activos.length?`<div class="plist">${activos.map(p=>{const nx=projActs(p.id).find(a=>a.estado!=='Completada');
     return `<a class="pitem" href="#proyecto-${p.id}"><div><b>${esc(p.nombre)}</b><small>${esc(cliName(p.clienteId))} · ${esc(p.tipo)}</small><br>${badge(p.estado,KIND_PROY[p.estado])} ${nx?`<small>Siguiente: ${esc(nx.nombre)} (${fd(nx.fecha)})</small>`:''}</div><div>${progHtml(p.id)}</div></a>`}).join('')}</div>`:emptyBox('No hay proyectos activos.')}</section></div>
   <p class="note"><b>Origen:</b> esta pantalla responde a lo que Gabriela pidió ver al iniciar el día (minuta 01, tema 6): proyectos activos, tareas pendientes, entregables próximos y actividades urgentes.</p>`}
 
@@ -347,7 +345,7 @@ function vPotenciales(){
   else if(f==='convertidos')rows=rows.filter(l=>l.convertidoA);
   else if(f!=='todos')rows=rows.filter(l=>!l.convertidoA&&l.estado===f);
   const chips=[['activos','En seguimiento'],...EST_LEAD.map(e=>[e,e]),['convertidos','Convertidos'],['todos','Todos']];
-  return ph('Potenciales <b>clientes</b> '+rf('RF-01 RF-02 RF-03'),'Personas interesadas que aún no han firmado contrato ni realizado el primer depósito.',`<button class="btn" data-act="nuevoLead">+ Registrar potencial cliente</button>`)+
+  return ph('Potenciales <b>clientes</b>','Personas interesadas que aún no han firmado contrato ni realizado el primer depósito.',`<button class="btn" data-act="nuevoLead">+ Registrar potencial cliente</button>`)+
   `<div class="filters"><div class="chips">${chips.map(([k,l])=>`<button class="chip ${f===k?'on':''}" data-act="leadF" data-id="${esc(k)}">${esc(l)}</button>`).join('')}</div></div>
   <div class="card tblwrap">${rows.length?`<table class="tbl"><thead><tr><th>Nombre</th><th>Contacto</th><th>Nacionalidad</th><th>Servicio de interés</th><th>Estado</th><th>Registro</th><th></th></tr></thead><tbody>
   ${rows.map(l=>`<tr class="click" data-act="editLead" data-id="${l.id}"><td><b>${esc(l.nombre)}</b>${l.notas?`<br><small class="muted">${esc(l.notas.slice(0,70))}${l.notas.length>70?'…':''}</small>`:''}</td>
@@ -366,7 +364,7 @@ const leadFields=()=>[
  {k:'notas',label:'Notas',type:'textarea',full:true,ph:'Canal de contacto, necesidades iniciales…'}];
 function formLead(l){
   if(!needEdit())return;
-  openForm({title:l?'Potencial cliente':'Registrar potencial cliente',rf:l?'RF-02':'RF-01',fields:leadFields(),values:l||{estado:'Nuevo'},submit:l?'Guardar cambios':'Registrar',
+  openForm({title:l?'Potencial cliente':'Registrar potencial cliente',fields:leadFields(),values:l||{estado:'Nuevo'},submit:l?'Guardar cambios':'Registrar',
    extra:l&&!l.convertidoA?`<button type="button" class="btn madera" data-act="convertir" data-id="${l.id}">Convertir a cliente</button>`:'',
    onSubmit:async v=>{
     if(l){const r=await op('editarLead',{...v,id:l.id});return r.errors||r.cancel?r:{msg:'Cambios guardados.'}}
@@ -378,18 +376,18 @@ function formConvertir(l){
    {k:'tipoId',label:'Tipo de identificación',type:'select',options:['Cédula','Pasaporte'],req:true},
    {k:'numId',label:'Número de identificación',req:true,check:idCheck('tipoId'),ph:'1-1234-0567'},
    {k:'contrato',label:'Confirmo que firmó el contrato y realizó el primer depósito',type:'checkbox',req:true,help:'Condición para considerar a la persona como cliente (minuta 01, tema 2).'}];
-  openForm({title:'Convertir en cliente',rf:'RF-03',intro:`Se conservarán los datos de <b>${esc(l.nombre)}</b>: ${esc([l.telefono,l.correo].filter(Boolean).join(' · '))}${l.nacionalidad?' · '+esc(l.nacionalidad):''}.`,fields:f,submit:'Convertir',
+  openForm({title:'Convertir en cliente',intro:`Se conservarán los datos de <b>${esc(l.nombre)}</b>: ${esc([l.telefono,l.correo].filter(Boolean).join(' · '))}${l.nacionalidad?' · '+esc(l.nacionalidad):''}.`,fields:f,submit:'Convertir',
    onSubmit:async v=>{const r=await op('convertir',{...v,id:l.id});if(r.errors||r.cancel)return r;return {msg:`${l.nombre} ahora es cliente.`,go:'#cliente-'+r.id}}});
 }
 
 /* ---------- Clientes RF-04 ---------- */
 function vClientes(){
   const rows=DB.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
-  return ph('<b>Clientes</b> '+rf('RF-04'),'Personas con contrato firmado. Cada cliente puede tener varios proyectos (RN-01).',`<button class="btn" data-act="nuevoCliente">+ Registrar cliente</button>`)+
+  return ph('<b>Clientes</b>','Personas con contrato firmado. Cada cliente puede tener varios proyectos.',`<button class="btn" data-act="nuevoCliente">+ Registrar cliente</button>`)+
   `<div class="card tblwrap">${rows.length?`<table class="tbl"><thead><tr><th>Nombre</th><th>Identificación</th><th>Contacto</th><th>Nacionalidad</th><th class="num">Proyectos</th></tr></thead><tbody>
   ${rows.map(c=>{const n=DB.proyectos.filter(p=>p.clienteId===c.id).length;return `<tr class="click" data-goto="#cliente-${c.id}"><td><b>${esc(c.nombre)}</b></td><td>${esc(c.tipoId)} ${esc(c.numId)}</td><td>${esc(c.telefono||'')}<br><small>${esc(c.correo||'')}</small></td><td>${esc(c.nacionalidad||'—')}</td><td class="num">${n}</td></tr>`}).join('')}
   </tbody></table>`:emptyBox('Aún no hay clientes registrados.')}</div>
-  <p class="note">La eliminación de clientes queda fuera del alcance de esta versión (CU-04, restricción 4).</p>`}
+  <p class="note">La eliminación de clientes queda fuera del alcance de esta versión.</p>`}
 const clienteFields=()=>[
  {k:'nombre',label:'Nombre completo',req:true,full:true},
  {k:'tipoId',label:'Tipo de identificación',type:'select',options:['Cédula','Pasaporte'],req:true},
@@ -399,7 +397,7 @@ const clienteFields=()=>[
  {k:'nacionalidad',label:'Nacionalidad'}];
 function formCliente(c){
   if(!needEdit())return;
-  openForm({title:c?'Editar cliente':'Registrar cliente',rf:'RF-04',fields:clienteFields(),values:c||{},submit:c?'Guardar cambios':'Registrar',
+  openForm({title:c?'Editar cliente':'Registrar cliente',fields:clienteFields(),values:c||{},submit:c?'Guardar cambios':'Registrar',
    onSubmit:async v=>{
     if(c){const r=await op('editarCliente',{...v,id:c.id});return r.errors||r.cancel?r:{msg:'Cliente actualizado.'}}
     const r=await op('crearCliente',v);if(r.errors||r.cancel)return r;return {msg:'Cliente registrado.',go:'#cliente-'+r.id}}});
@@ -409,10 +407,10 @@ function vCliente(id){
   const ps=DB.proyectos.filter(p=>p.clienteId===id);
   const lead=c.origenLead&&byId('leads',c.origenLead);
   return ph(esc(c.nombre),`${esc(c.tipoId)} ${esc(c.numId)}`,`<button class="btn ghost" data-act="editCliente" data-id="${id}">Editar</button><button class="btn" data-act="nuevoProyecto" data-id="${id}">+ Nuevo proyecto</button>`,`<a href="#clientes">clientes</a> / ficha`)+
-  `<div class="stack"><section class="card"><h3>Datos del cliente ${rf('RF-04')}</h3><div class="dgrid">
+  `<div class="stack"><section class="card"><h3>Datos del cliente</h3><div class="dgrid">
    <div><small>Teléfono</small><span>${esc(c.telefono||'—')}</span></div><div><small>Correo</small><span>${esc(c.correo||'—')}</span></div><div><small>Nacionalidad</small><span>${esc(c.nacionalidad||'—')}</span></div>
    <div><small>Cliente desde</small><span>${fd(c.creado)}</span></div><div class="full"><small>Origen</small><span>${lead?`Convertido desde potencial cliente (registrado el ${fd(lead.creado)}, interés: ${esc(lead.servicio)})`:'Registro directo'}</span></div></div></section>
-  <section class="card"><h3>Proyectos del cliente ${rf('RF-04 RF-15')}</h3>${ps.length?projTable(ps,false):emptyBox('Este cliente aún no tiene proyectos.')}</section></div>`}
+  <section class="card"><h3>Proyectos del cliente</h3>${ps.length?projTable(ps,false):emptyBox('Este cliente aún no tiene proyectos.')}</section></div>`}
 function projTable(ps,showCli){return `<div class="tblwrap"><table class="tbl"><thead><tr><th>Proyecto</th>${showCli?'<th>Cliente</th>':''}<th>Tipo</th><th>Inicio</th><th>Estado</th><th>Avance</th></tr></thead><tbody>
  ${ps.map(p=>`<tr class="click" data-goto="#proyecto-${p.id}"><td><b>${esc(p.nombre)}</b><br><small class="muted">${esc(p.ubicacion||'')}</small></td>${showCli?`<td>${esc(cliName(p.clienteId))}</td>`:''}<td>${esc(p.tipo)}</td><td>${fd(p.fechaInicio)}</td><td>${badge(p.estado,KIND_PROY[p.estado])}</td><td style="min-width:150px">${progHtml(p.id)}</td></tr>`).join('')}</tbody></table></div>`}
 
@@ -420,7 +418,7 @@ function projTable(ps,showCli){return `<div class="tblwrap"><table class="tbl"><
 function vProyectos(){
   const f=ui.pf;const q=norm(f.q);
   const rows=DB.proyectos.filter(p=>(!f.tipo||p.tipo===f.tipo)&&(!f.estado||p.estado===f.estado)&&(!q||norm(p.nombre+' '+cliName(p.clienteId)+' '+p.ubicacion).includes(q)));
-  return ph('<b>Proyectos</b> '+rf('RF-05 RF-07 RF-08 RF-15'),'Todos los proyectos del estudio, clasificados por tipo de servicio y estado.',`<button class="btn" data-act="nuevoProyecto">+ Nuevo proyecto</button>`)+
+  return ph('<b>Proyectos</b>','Todos los proyectos del estudio, clasificados por tipo de servicio y estado.',`<button class="btn" data-act="nuevoProyecto">+ Nuevo proyecto</button>`)+
   `<div class="filters"><select data-chg="pfTipo" aria-label="Filtrar por tipo"><option value="">Todos los tipos</option>${TIPOS.map(t=>opt(t,f.tipo)).join('')}</select>
    <select data-chg="pfEstado" aria-label="Filtrar por estado"><option value="">Todos los estados</option>${ESTADOS.map(t=>opt(t,f.estado)).join('')}</select>
    <input data-chg="pfQ" placeholder="Nombre, cliente o ubicación…" value="${esc(f.q)}">
@@ -429,7 +427,7 @@ function vProyectos(){
 const proyFields=(isNew)=>[
  {k:'clienteId',label:'Cliente',type:'select',req:true,options:DB.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>[c.id,c.nombre]),full:true},
  {k:'nombre',label:'Nombre del proyecto',req:true,full:true},
- {k:'tipo',label:'Tipo de servicio',type:'select',options:TIPOS,req:true,help:'Catálogo del estudio (RF-07, RN-03).'},
+ {k:'tipo',label:'Tipo de servicio',type:'select',options:TIPOS,req:true,help:'Catálogo del estudio.'},
  {k:'fechaInicio',label:'Fecha de inicio',type:'date',req:true},
  {k:'descripcion',label:'Descripción',type:'textarea',req:true,full:true},
  {k:'ubicacion',label:'Ubicación'},
@@ -437,9 +435,9 @@ const proyFields=(isNew)=>[
  ...(isNew?[{k:'plan',label:'Cargar el plan de acción sugerido para este tipo de servicio (actividades y entregables con fechas)',type:'checkbox',help:'Se pueden editar después. Plan propuesto a partir de la minuta 01 — pendiente de validar con Anémona.'}]:[])];
 function formProyecto(p,preCliente){
   if(!needEdit())return;
-  if(!p&&!DB.clientes.length){infoBox('Primero registre el cliente','Todo proyecto debe estar vinculado con un cliente registrado (RN-01, RNF-02). Registre el cliente antes de continuar.',`<button class="btn ghost" data-close>Cancelar</button><button class="btn" data-act="nuevoCliente">Registrar cliente</button>`);return}
-  openForm({title:p?'Editar proyecto':'Nuevo proyecto',rf:p?'RF-06 RF-07':'RF-05 RF-07',fields:proyFields(!p),values:p||{clienteId:preCliente||'',fechaInicio:today(),plan:true},submit:p?'Guardar cambios':'Registrar proyecto',
-   intro:p?'':'Solo se piden los datos comunes a todo proyecto. Proveedores, materiales y actividades se agregan únicamente si el servicio los requiere (RNF-05).',
+  if(!p&&!DB.clientes.length){infoBox('Primero registre el cliente','Todo proyecto debe estar vinculado con un cliente registrado. Registre el cliente antes de continuar.',`<button class="btn ghost" data-close>Cancelar</button><button class="btn" data-act="nuevoCliente">Registrar cliente</button>`);return}
+  openForm({title:p?'Editar proyecto':'Nuevo proyecto',fields:proyFields(!p),values:p||{clienteId:preCliente||'',fechaInicio:today(),plan:true},submit:p?'Guardar cambios':'Registrar proyecto',
+   intro:p?'':'Solo se piden los datos comunes a todo proyecto. Proveedores, materiales y actividades se agregan únicamente si el servicio los requiere.',
    onSubmit:async v=>{
     if(p){const r=await op('editarProyecto',{...v,id:p.id});return r.errors||r.cancel?r:{msg:'Proyecto actualizado.'}}
     const r=await op('crearProyecto',v);if(r.errors||r.cancel)return r;
@@ -455,42 +453,42 @@ function vProyecto(id){
   const estadoSel=permit.length?`<select data-chg="estadoProy" data-id="${id}" aria-label="Cambiar estado"><option value="">Cambiar estado…</option>${ESTADOS.filter(e=>e!==p.estado).map(e=>`<option value="${e}" ${permit.includes(e)?'':'disabled'}>${e}${permit.includes(e)?'':' (no permitido)'}</option>`).join('')}</select>`:`<small class="muted">Estado final: no admite más cambios.</small>`;
   const totalMat=mats.reduce((s,m)=>s+(+m.cantidad||0)*(+m.precioUnit||0),0);
   let body='';
-  if(ui.tab==='resumen')body=`<section class="card"><div class="headrow"><h3 style="margin:0">Datos del proyecto ${rf('RF-06')}</h3><button class="btn ghost sm" data-act="editProyecto" data-id="${id}">Editar</button></div>
+  if(ui.tab==='resumen')body=`<section class="card"><div class="headrow"><h3 style="margin:0">Datos del proyecto</h3><button class="btn ghost sm" data-act="editProyecto" data-id="${id}">Editar</button></div>
    <div class="dgrid"><div><small>Cliente</small><span><a href="#cliente-${p.clienteId}">${esc(cliName(p.clienteId))}</a></span></div><div><small>Tipo de servicio</small><span>${esc(p.tipo)}</span></div><div><small>Fecha de inicio</small><span>${fd(p.fechaInicio)}</span></div>
    <div><small>Ubicación</small><span>${esc(p.ubicacion||'—')}</span></div><div><small>Área</small><span>${p.area!==''&&p.area!=null?esc(p.area)+' m²':'—'}</span></div><div><small>Avance</small><span>${progHtml(id)}</span></div>
    <div class="full"><small>Descripción</small><span>${esc(p.descripcion)}</span></div></div></section>
    <div class="grid2" style="margin-top:20px"><section class="card"><h3>Próximas actividades</h3>${acts.filter(a=>a.estado!=='Completada').slice(0,4).map(a=>actRow(a,false)).join('')||emptyBox('Sin actividades pendientes.')}</section>
-   <section class="card"><h3>Relaciones ${rf('RF-15')}</h3><div class="dgrid" style="grid-template-columns:1fr 1fr">
+   <section class="card"><h3>Relaciones</h3><div class="dgrid" style="grid-template-columns:1fr 1fr">
     <div><small>Proveedores</small><span>${provs.length?provs.map(x=>esc((byId('proveedores',x.proveedorId)||{}).nombre)+' '+badge(x.condicion,x.condicion==='Seleccionado'?'ok':'mute')).join('<br>'):'Ninguno'}</span></div>
     <div><small>Materiales y productos</small><span>${mats.length?mats.length+' elementos · '+money(totalMat):'Ninguno'}</span></div>
     <div><small>Cotizaciones</small><span>${cots.length?cots.map(c=>esc(c.codigo)+' '+badge(c.estado,KIND_COT[c.estado])).join('<br>'):'Ninguna'}</span></div></div>
-    ${!provs.length&&!mats.length?`<p class="note" style="margin-top:12px">Este proyecto no tiene proveedores ni materiales asociados y sigue siendo válido (RN-02, RNF-05).</p>`:''}</section></div>`;
-  else if(ui.tab==='actividades')body=`<section class="card"><div class="headrow"><h3 style="margin:0">Actividades y entregables ${rf('RF-13 RF-14')}</h3><div style="display:flex;gap:8px;flex-wrap:wrap">
+    ${!provs.length&&!mats.length?`<p class="note" style="margin-top:12px">Este proyecto no tiene proveedores ni materiales asociados y sigue siendo válido.</p>`:''}</section></div>`;
+  else if(ui.tab==='actividades')body=`<section class="card"><div class="headrow"><h3 style="margin:0">Actividades y entregables</h3><div style="display:flex;gap:8px;flex-wrap:wrap">
    ${PLAN[p.tipo]?`<button class="btn ghost sm" data-act="cargarPlan" data-id="${id}">Cargar plan de acción «${esc(p.tipo)}»</button>`:''}<button class="btn sm" data-act="nuevaAct" data-id="${id}">+ Nueva actividad</button></div></div>
    ${acts.length?`<div class="tblwrap"><table class="tbl"><thead><tr><th>Actividad</th><th>Responsable</th><th>Fecha prevista</th><th>Estado</th><th></th></tr></thead><tbody>
    ${acts.map(a=>`<tr><td><b>${esc(a.nombre)}</b>${a.entregable?' <span class="ent">· entregable</span>':''}</td><td>${esc(a.responsable)}</td><td>${fd(a.fecha)} ${whenB(a)}</td>
     <td><select class="inline-sel" data-chg="estadoAct" data-id="${a.id}" aria-label="Estado de la actividad">${EST_ACT.map(e=>opt(e,a.estado)).join('')}</select></td><td class="num"><button class="btn ghost sm" data-act="verAct" data-id="${a.id}">Editar</button></td></tr>`).join('')}</tbody></table></div>`
    :emptyBox('Sin actividades. Puede crear una o cargar el plan de acción del tipo de servicio.')}</section>`;
-  else if(ui.tab==='proveedores')body=`<section class="card"><div class="headrow"><h3 style="margin:0">Proveedores del proyecto ${rf('RF-11')}</h3><button class="btn sm" data-act="asocProv" data-id="${id}">+ Asociar proveedor</button></div>
+  else if(ui.tab==='proveedores')body=`<section class="card"><div class="headrow"><h3 style="margin:0">Proveedores del proyecto</h3><button class="btn sm" data-act="asocProv" data-id="${id}">+ Asociar proveedor</button></div>
    ${provs.length?`<div class="tblwrap"><table class="tbl"><thead><tr><th>Proveedor</th><th>Categorías</th><th>Contacto</th><th>Condición</th><th></th></tr></thead><tbody>
    ${provs.map(x=>{const v=byId('proveedores',x.proveedorId)||{};return `<tr><td><a href="#proveedor-${v.id}"><b>${esc(v.nombre)}</b></a></td><td>${(v.categorias||[]).map(c=>badge(c,'sea')).join(' ')}</td><td>${esc(v.contacto||'')}<br><small>${esc(v.telefono||'')}</small></td>
     <td><select class="inline-sel" data-chg="condProv" data-id="${x.id}" aria-label="Condición">${COND.map(c=>opt(c,x.condicion)).join('')}</select></td><td class="num"><button class="btn ghost sm" data-act="quitarProv" data-id="${x.id}">Quitar</button></td></tr>`}).join('')}</tbody></table></div>`
-   :emptyBox('Sin proveedores asociados. Un proyecto puede no requerir proveedores externos (RN-02).')}</section>`;
-  else if(ui.tab==='materiales')body=`<section class="card"><div class="headrow"><h3 style="margin:0">Materiales y productos ${rf('RF-12')}</h3><button class="btn sm" data-act="asocMat" data-id="${id}">+ Asociar material o producto</button></div>
+   :emptyBox('Sin proveedores asociados. Un proyecto puede no requerir proveedores externos.')}</section>`;
+  else if(ui.tab==='materiales')body=`<section class="card"><div class="headrow"><h3 style="margin:0">Materiales y productos</h3><button class="btn sm" data-act="asocMat" data-id="${id}">+ Asociar material o producto</button></div>
    ${mats.length?`<div class="tblwrap"><table class="tbl"><thead><tr><th>Material / producto</th><th>Proveedor(es)</th><th class="num">Cantidad</th><th class="num">Precio unitario</th><th class="num">Costo total</th><th></th></tr></thead><tbody>
    ${mats.map(x=>{const m=byId('materiales',x.materialId)||{};return `<tr><td><b>${esc(m.nombre)}</b>${m.modelo?` <small class="muted">${esc(m.modelo)}</small>`:''}${x.nota?`<br><small class="muted">${esc(x.nota)}</small>`:''}</td><td><small>${(m.proveedorIds||[]).map(pid=>esc((byId('proveedores',pid)||{}).nombre)).join(', ')||'—'}</small></td>
     <td class="num">${esc(x.cantidad)} ${esc(m.unidad||'')}</td><td class="num">${money(x.precioUnit)}</td><td class="num">${money((+x.cantidad||0)*(+x.precioUnit||0))}</td>
     <td class="num"><button class="btn ghost sm" data-act="editMatProy" data-id="${x.id}">Editar</button> <button class="btn ghost sm" data-act="quitarMat" data-id="${x.id}">Quitar</button></td></tr>`}).join('')}</tbody>
     <tfoot><tr><td colspan="4">Total registrado</td><td class="num">${money(totalMat)}</td><td></td></tr></tfoot></table></div>`
-   :emptyBox('Sin materiales asociados. No todos los servicios los requieren (RNF-05).')}</section>`;
-  else body=`<section class="card"><div class="headrow"><h3 style="margin:0">Referencias de cotización ${rf('RF-16')}</h3><button class="btn sm" data-act="nuevaCot" data-id="${id}">+ Registrar referencia</button></div>
+   :emptyBox('Sin materiales asociados. No todos los servicios los requieren.')}</section>`;
+  else body=`<section class="card"><div class="headrow"><h3 style="margin:0">Referencias de cotización</h3><button class="btn sm" data-act="nuevaCot" data-id="${id}">+ Registrar referencia</button></div>
    ${cots.length?`<div class="tblwrap"><table class="tbl"><thead><tr><th>Código</th><th>Fecha</th><th class="num">Monto</th><th>Estado</th><th>Documento / enlace</th><th></th></tr></thead><tbody>
    ${cots.map(c=>`<tr><td><b>${esc(c.codigo)}</b></td><td>${fd(c.fecha)}</td><td class="num">${money(c.monto)}</td><td>${badge(c.estado,KIND_COT[c.estado])}</td>
     <td>${c.archivo?(c.tieneArchivo&&MODO==='api'?`<a href="/api/cotizaciones/${c.id}/archivo" target="_blank" rel="noopener"><small>Abrir documento: ${esc(c.archivo)}</small></a><br>`:`<small>Documento: ${esc(c.archivo)}</small><br>`):''}${c.enlace?`<a href="${esc(c.enlace)}" target="_blank" rel="noopener"><small>${esc(c.enlace)}</small></a>`:''}</td><td class="num"><button class="btn ghost sm" data-act="editCot" data-id="${c.id}">Editar</button></td></tr>`).join('')}</tbody></table></div>`
    :emptyBox('Sin cotizaciones registradas.')}
-   <p class="note">El sistema solo guarda la referencia: la cotización se sigue elaborando en Canva (IE-01). No calcula ni emite cotizaciones en esta versión.${MODO==='api'?' Los documentos adjuntos se guardan en la base de datos.':' En modo demostración solo se registra el nombre del archivo.'}</p></section>`;
+   <p class="note">El sistema solo guarda la referencia: la cotización se sigue elaborando en Canva. No calcula ni emite cotizaciones en esta versión.${MODO==='api'?' Los documentos adjuntos se guardan en la base de datos.':' En modo demostración solo se registra el nombre del archivo.'}</p></section>`;
   return ph(esc(p.nombre),`<a href="#cliente-${p.clienteId}">${esc(cliName(p.clienteId))}</a> · ${esc(p.tipo)}`,
-   `<div class="estado-box">${rf('RF-08')} ${badge(p.estado,KIND_PROY[p.estado])} ${estadoSel}</div>`,`<a href="#proyectos">proyectos</a> / ficha`)+
+   `<div class="estado-box">${badge(p.estado,KIND_PROY[p.estado])} ${estadoSel}</div>`,`<a href="#proyectos">proyectos</a> / ficha`)+
   `<div class="tabs" role="tablist">${tabs.map(([k,l,n])=>`<button class="tab ${ui.tab===k?'on':''}" data-act="tab" data-id="${k}" role="tab">${l}${n!=null?`<span class="cnt">${n}</span>`:''}</button>`).join('')}</div>${body}`}
 
 /* Actividades RF-13, RF-14 */
@@ -503,7 +501,7 @@ const actFields=()=>[
 function formAct(a,pid){
   const p=byId('proyectos',a?a.proyectoId:pid);
   if(!can()){if(a){ui.lastProj=a.proyectoId;ui.tab='actividades';location.hash='#proyecto-'+a.proyectoId}needEdit();return}
-  openForm({title:a?'Actividad':'Nueva actividad',rf:a?'RF-14':'RF-13',intro:`Proyecto: <b>${esc(p.nombre)}</b> · ${esc(cliName(p.clienteId))}`,fields:actFields(),values:a||{estado:'Pendiente',responsable:'Gabriela Núñez'},submit:a?'Guardar cambios':'Registrar actividad',
+  openForm({title:a?'Actividad':'Nueva actividad',intro:`Proyecto: <b>${esc(p.nombre)}</b> · ${esc(cliName(p.clienteId))}`,fields:actFields(),values:a||{estado:'Pendiente',responsable:'Gabriela Núñez'},submit:a?'Guardar cambios':'Registrar actividad',
    extra:a?`<button type="button" class="btn ghost" data-goto="#proyecto-${p.id}" data-tab="actividades">Abrir proyecto →</button>`:'',
    onSubmit:async v=>{
     if(a){const r=await op('editarActividad',{...v,id:a.id});return r.errors||r.cancel?r:{msg:'Actividad actualizada; el calendario refleja el cambio.'}}
@@ -515,7 +513,7 @@ function formAsocProv(pid){
   if(!needEdit())return;
   const ya=DB.provProy.filter(x=>x.proyectoId===pid).map(x=>x.proveedorId);
   const opts=DB.proveedores.filter(v=>!ya.includes(v.id)).sort((a,b)=>(a.categorias[0]||'').localeCompare(b.categorias[0]||'')||a.nombre.localeCompare(b.nombre)).map(v=>[v.id,v.nombre+' — '+v.categorias.join(', ')]);
-  openForm({title:'Asociar proveedores',rf:'RF-11',wide:true,intro:'Seleccione uno o varios proveedores e indique si están considerados (alternativa evaluada) o seleccionados (elegidos para participar).',
+  openForm({title:'Asociar proveedores',wide:true,intro:'Seleccione uno o varios proveedores e indique si están considerados (alternativa evaluada) o seleccionados (elegidos para participar).',
    fields:[{k:'ids',label:'Proveedores disponibles',type:'multi',options:opts,req:true,full:true,empty:'Todos los proveedores ya están asociados o no hay proveedores registrados. Regístrelos en «Proveedores».'},{k:'condicion',label:'Condición',type:'select',options:COND,req:true}],
    values:{condicion:'Considerado'},submit:'Asociar',
    onSubmit:async v=>{const r=await op('asociarProveedores',{...v,proyectoId:pid});return r.errors||r.cancel?r:{msg:v.ids.length+' proveedor(es) asociado(s).'}}});
@@ -523,12 +521,12 @@ function formAsocProv(pid){
 /* Materiales en proyecto RF-12 */
 function formMatProy(pid,x){
   if(!needEdit())return;
-  if(!x&&!DB.materiales.length){infoBox('Catálogo vacío','Registre primero el material o producto en el catálogo (CU-12, flujo alternativo).',`<button class="btn ghost" data-close>Cancelar</button><a class="btn" href="#materiales" data-close>Ir a materiales</a>`);return}
+  if(!x&&!DB.materiales.length){infoBox('Catálogo vacío','Registre primero el material o producto en el catálogo.',`<button class="btn ghost" data-close>Cancelar</button><a class="btn" href="#materiales" data-close>Ir a materiales</a>`);return}
   const f=[...(x?[]:[{k:'materialId',label:'Material o producto',type:'select',req:true,full:true,options:DB.materiales.map(m=>[m.id,m.nombre+(m.modelo?' ('+m.modelo+')':'')+' — ref. '+money(m.precioRef)+' / '+m.unidad])}]),
    {k:'cantidad',label:'Cantidad',type:'number',req:true,check:v=>+v<=0?'La cantidad debe ser mayor que 0.':''},
    {k:'precioUnit',label:'Precio unitario (₡)',type:'number',help:x?'':'Si se deja vacío se usa el precio de referencia del catálogo.'},
    {k:'nota',label:'Nota / ubicación en el proyecto',full:true}];
-  openForm({title:x?'Editar material del proyecto':'Asociar material o producto',rf:'RF-12',fields:f,values:x||{cantidad:'1'},submit:x?'Guardar':'Asociar',
+  openForm({title:x?'Editar material del proyecto':'Asociar material o producto',fields:f,values:x||{cantidad:'1'},submit:x?'Guardar':'Asociar',
    onSubmit:async v=>{
     if(x){const r=await op('editarMatProy',{...v,id:x.id});return r.errors||r.cancel?r:{msg:'Material actualizado.'}}
     const r=await op('asociarMaterial',{...v,proyectoId:pid});return r.errors||r.cancel?r:{msg:'Material asociado al proyecto.'}}});
@@ -540,7 +538,7 @@ function formCot(pid,c){
    {k:'monto',label:'Monto (₡)',type:'number',help:'Opcional; dato informativo.'},{k:'estado',label:'Estado',type:'select',options:EST_COT,req:true},
    {k:'enlace',label:'Enlace al documento (Canva, Drive…)',type:'url',full:true,ph:'https://…',check:(val,v)=>{if(val&&!/^https?:\/\/\S+\.\S+/.test(val))return 'El enlace debe iniciar con http:// o https://';if(!val&&!v.archivo)return 'Indique un enlace o adjunte el documento.';return ''}},
    {k:'archivo',label:'Documento adjunto',type:'file',full:true,accept:'.pdf,.png,.jpg,.jpeg,.docx',current:c&&c.archivo,help:'PDF, PNG, JPG o DOCX, máximo 10 MB.',check:(val,v)=>{if(val&&!/\.(pdf|png|jpe?g|docx)$/i.test(val))return 'Formato no permitido. Use PDF, PNG, JPG o DOCX.';if(v.archivo__file&&v.archivo__file.size>MAX_ARCHIVO)return 'El archivo supera el máximo de 10 MB.';return ''}}];
-  openForm({title:c?'Editar referencia de cotización':'Registrar referencia de cotización',rf:'RF-16',fields:f,values:c||{fecha:today(),estado:'Enviada'},submit:'Guardar',
+  openForm({title:c?'Editar referencia de cotización':'Registrar referencia de cotización',fields:f,values:c||{fecha:today(),estado:'Enviada'},submit:'Guardar',
    onSubmit:async v=>{const file=v.archivo__file;delete v.archivo__file;
     if(file&&MODO==='api'){v.archivoDatos=await leerBase64(file);v.archivoTipo=file.type||''}
     const r=c?await op('editarCotizacion',{...v,id:c.id}):await op('crearCotizacion',{...v,proyectoId:pid});
@@ -551,7 +549,7 @@ function formCot(pid,c){
 function vProveedores(){
   const cat=ui.provCat;
   const rows=DB.proveedores.filter(v=>!cat||v.categorias.includes(cat)).sort((a,b)=>a.nombre.localeCompare(b.nombre));
-  return ph('<b>Proveedores</b> '+rf('RF-09'),'Directorio clasificado por tipo de producto o servicio. Para una misma categoría puede haber varias alternativas.',`<button class="btn" data-act="nuevoProv">+ Registrar proveedor</button>`)+
+  return ph('<b>Proveedores</b>','Directorio clasificado por tipo de producto o servicio. Para una misma categoría puede haber varias alternativas.',`<button class="btn" data-act="nuevoProv">+ Registrar proveedor</button>`)+
   `<div class="filters"><div class="chips"><button class="chip ${!cat?'on':''}" data-act="provCat" data-id="">Todas (${DB.proveedores.length})</button>${CATS.map(c=>{const n=DB.proveedores.filter(v=>v.categorias.includes(c)).length;return `<button class="chip ${cat===c?'on':''}" data-act="provCat" data-id="${c}">${c} (${n})</button>`}).join('')}</div></div>
   ${rows.length?`<div class="pcards">${rows.map(v=>{const n=DB.provProy.filter(x=>x.proveedorId===v.id).length;return `<a class="pcard" href="#proveedor-${v.id}"><div class="tags">${v.categorias.map(c=>badge(c,'sea')).join('')}</div><b>${esc(v.nombre)}</b>
    <small>${esc(v.contacto||'Sin contacto')} · ${esc(v.telefono)}</small><small class="muted">${esc(v.ofrece)}</small><small class="muted">${n} proyecto(s)</small></a>`}).join('')}</div>`:emptyBox('No hay proveedores en esta categoría.')}`}
@@ -565,7 +563,7 @@ const provFields=()=>[
  {k:'notas',label:'Observaciones (tiempos de entrega, experiencia previa…)',type:'textarea',full:true}];
 function formProv(v){
   if(!needEdit())return;
-  openForm({title:v?'Editar proveedor':'Registrar proveedor',rf:'RF-09',wide:true,fields:provFields(),values:v||{},submit:v?'Guardar cambios':'Registrar',
+  openForm({title:v?'Editar proveedor':'Registrar proveedor',wide:true,fields:provFields(),values:v||{},submit:v?'Guardar cambios':'Registrar',
    onSubmit:async x=>{
     if(v){const r=await op('editarProveedor',{...x,id:v.id});return r.errors||r.cancel?r:{msg:'Proveedor actualizado.'}}
     const r=await op('crearProveedor',x);return r.errors||r.cancel?r:{msg:'Proveedor registrado.',go:'#proveedor-'+r.id}}});
@@ -575,16 +573,16 @@ function vProveedor(id){
   const pps=DB.provProy.filter(x=>x.proveedorId===id);const mats=DB.materiales.filter(m=>(m.proveedorIds||[]).includes(id));
   const alt=DB.proveedores.filter(o=>o.id!==id&&o.categorias.some(c=>v.categorias.includes(c)));
   return ph(esc(v.nombre),v.categorias.map(c=>badge(c,'sea')).join(' '),`<button class="btn ghost" data-act="editProv" data-id="${id}">Editar</button>`,`<a href="#proveedores">proveedores</a> / ficha`)+
-  `<div class="stack"><section class="card"><h3>Datos ${rf('RF-09')}</h3><div class="dgrid"><div><small>Contacto</small><span>${esc(v.contacto||'—')}</span></div><div><small>Teléfono</small><span>${esc(v.telefono)}</span></div><div><small>Correo</small><span>${esc(v.correo||'—')}</span></div>
+  `<div class="stack"><section class="card"><h3>Datos</h3><div class="dgrid"><div><small>Contacto</small><span>${esc(v.contacto||'—')}</span></div><div><small>Teléfono</small><span>${esc(v.telefono)}</span></div><div><small>Correo</small><span>${esc(v.correo||'—')}</span></div>
    <div class="full"><small>Ofrece</small><span>${esc(v.ofrece)}</span></div>${v.notas?`<div class="full"><small>Observaciones</small><span>${esc(v.notas)}</span></div>`:''}</div></section>
-  <div class="grid2"><section class="card"><h3>Proyectos ${rf('RF-11 RF-15')}</h3>${pps.length?`<table class="tbl"><tbody>${pps.map(x=>{const p=byId('proyectos',x.proyectoId)||{};return `<tr class="click" data-goto="#proyecto-${p.id}"><td><b>${esc(p.nombre)}</b><br><small class="muted">${esc(cliName(p.clienteId))}</small></td><td class="num">${badge(x.condicion,x.condicion==='Seleccionado'?'ok':'mute')}</td></tr>`}).join('')}</tbody></table>`:emptyBox('Aún no participa en proyectos.')}</section>
-  <section class="card"><h3>Materiales y productos que ofrece ${rf('RF-10')}</h3>${mats.length?`<table class="tbl"><tbody>${mats.map(m=>`<tr><td>${esc(m.nombre)}</td><td class="num">${money(m.precioRef)} / ${esc(m.unidad)}</td></tr>`).join('')}</tbody></table>`:emptyBox('Sin materiales registrados.')}</section></div>
+  <div class="grid2"><section class="card"><h3>Proyectos</h3>${pps.length?`<table class="tbl"><tbody>${pps.map(x=>{const p=byId('proyectos',x.proyectoId)||{};return `<tr class="click" data-goto="#proyecto-${p.id}"><td><b>${esc(p.nombre)}</b><br><small class="muted">${esc(cliName(p.clienteId))}</small></td><td class="num">${badge(x.condicion,x.condicion==='Seleccionado'?'ok':'mute')}</td></tr>`}).join('')}</tbody></table>`:emptyBox('Aún no participa en proyectos.')}</section>
+  <section class="card"><h3>Materiales y productos que ofrece</h3>${mats.length?`<table class="tbl"><tbody>${mats.map(m=>`<tr><td>${esc(m.nombre)}</td><td class="num">${money(m.precioRef)} / ${esc(m.unidad)}</td></tr>`).join('')}</tbody></table>`:emptyBox('Sin materiales registrados.')}</section></div>
   <section class="card"><h3>Otras alternativas en la misma categoría</h3>${alt.length?`<div class="chips">${alt.map(o=>`<a class="chip" href="#proveedor-${o.id}">${esc(o.nombre)}</a>`).join('')}</div>`:'<small class="muted">No hay otras alternativas registradas.</small>'}</section></div>`}
 
 /* ---------- Materiales RF-10 ---------- */
 function vMateriales(){
   const cat=ui.matCat;const rows=DB.materiales.filter(m=>!cat||m.categoria===cat).sort((a,b)=>a.nombre.localeCompare(b.nombre));
-  return ph('Materiales y <b>productos</b> '+rf('RF-10'),'Catálogo de materiales y productos usados o considerados en proyectos, con los proveedores que los ofrecen.',`<button class="btn" data-act="nuevoMat">+ Registrar material o producto</button>`)+
+  return ph('Materiales y <b>productos</b>','Catálogo de materiales y productos usados o considerados en proyectos, con los proveedores que los ofrecen.',`<button class="btn" data-act="nuevoMat">+ Registrar material o producto</button>`)+
   `<div class="filters"><select data-chg="matCat" aria-label="Filtrar por categoría"><option value="">Todas las categorías</option>${CATS.map(c=>opt(c,cat)).join('')}</select></div>
   <div class="card tblwrap">${rows.length?`<table class="tbl"><thead><tr><th>Material / producto</th><th>Categoría</th><th>Proveedores</th><th class="num">Precio ref.</th><th class="num">Proyectos</th></tr></thead><tbody>
   ${rows.map(m=>`<tr class="click" data-act="editMat" data-id="${m.id}"><td><b>${esc(m.nombre)}</b>${m.modelo?`<br><small class="muted">Modelo ${esc(m.modelo)}</small>`:''}</td><td>${badge(m.categoria,'sea')}</td>
@@ -594,9 +592,9 @@ function formMat(m){
   if(!needEdit())return;
   const f=[{k:'nombre',label:'Nombre del material o producto',req:true,full:true},{k:'modelo',label:'Modelo'},{k:'categoria',label:'Categoría',type:'select',options:CATS,req:true},
    {k:'unidad',label:'Unidad de medida',type:'select',options:UNIDADES,req:true},{k:'precioRef',label:'Precio de referencia (₡)',type:'number'},
-   {k:'proveedorIds',label:'Proveedores que lo ofrecen',type:'multi',full:true,options:DB.proveedores.map(v=>[v.id,v.nombre]),empty:'No hay proveedores registrados. Regístrelos antes de establecer la relación (CU-10).'},
+   {k:'proveedorIds',label:'Proveedores que lo ofrecen',type:'multi',full:true,options:DB.proveedores.map(v=>[v.id,v.nombre]),empty:'No hay proveedores registrados. Regístrelos antes de establecer la relación.'},
    {k:'descripcion',label:'Descripción u observaciones',type:'textarea',full:true}];
-  openForm({title:m?'Editar material o producto':'Registrar material o producto',rf:'RF-10',wide:true,fields:f,values:m||{unidad:'unidad'},submit:'Guardar',
+  openForm({title:m?'Editar material o producto':'Registrar material o producto',wide:true,fields:f,values:m||{unidad:'unidad'},submit:'Guardar',
    onSubmit:async v=>{const r=m?await op('editarMaterial',{...v,id:m.id}):await op('crearMaterial',v);return r.errors||r.cancel?r:{msg:m?'Material actualizado.':'Material registrado en el catálogo.'}}});
 }
 
@@ -609,7 +607,7 @@ function vCalendario(){
   const cells=[];for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);cells.push(d)}
   const rows=cells[35].getMonth()!==m-1?35:42;
   const evCls=a=>a.estado==='Completada'?'ok':a.fecha<T?'err':a.estado==='En proceso'?'warn':'';
-  return ph('<b>Calendario</b> '+rf('RF-14'),'Actividades y entregables con fecha prevista. Haga clic en una actividad para actualizarla o abrir su proyecto.','')+
+  return ph('<b>Calendario</b>','Actividades y entregables con fecha prevista. Haga clic en una actividad para actualizarla o abrir su proyecto.','')+
   `<div class="calhead"><button class="btn ghost sm" data-act="calMove" data-id="-1" aria-label="Mes anterior">←</button><h2>${MESL[m-1]} ${y}</h2><button class="btn ghost sm" data-act="calMove" data-id="1" aria-label="Mes siguiente">→</button><button class="btn ghost sm" data-act="calMove" data-id="0">Hoy</button>
   <select class="inline-sel" data-chg="calResp" aria-label="Responsable"><option value="">Todos los responsables</option>${RESP.map(r=>opt(r,ui.calResp)).join('')}</select>
   <div class="legend"><span><i style="background:var(--pizarra)"></i>Pendiente</span><span><i style="background:var(--ocre)"></i>En proceso</span><span><i style="background:var(--ladrillo)"></i>Atrasada</span><span><i style="background:var(--salvia)"></i>Completada</span><span><b>Negrita</b> = entregable</span></div></div>
@@ -620,7 +618,7 @@ function vCalendario(){
 /* ---------- Búsqueda RF-15 ---------- */
 function vBuscar(){
   const q=norm(ui.q);
-  if(!q)return ph('Búsqueda '+rf('RF-15'),'Escriba un término en la barra superior.','');
+  if(!q)return ph('Búsqueda','Escriba un término en la barra superior.','');
   const has=(...xs)=>norm(xs.join(' ')).includes(q);
   const L=DB.leads.filter(l=>!l.convertidoA&&has(l.nombre,l.telefono,l.correo,l.servicio,l.nacionalidad));
   const C=DB.clientes.filter(c=>has(c.nombre,c.numId,c.telefono,c.correo,c.nacionalidad));
@@ -629,7 +627,7 @@ function vBuscar(){
   const M=DB.materiales.filter(m=>has(m.nombre,m.modelo,m.categoria));
   const tot=L.length+C.length+P.length+V.length+M.length;
   const sec=(t,arr,fn)=>arr.length?`<section class="card"><h3>${t} <span class="b mute">${arr.length}</span></h3><table class="tbl"><tbody>${arr.map(fn).join('')}</tbody></table></section>`:'';
-  return ph('Resultados para «'+esc(ui.q)+'» '+rf('RF-15'),tot?tot+' coincidencia(s)':'','')+
+  return ph('Resultados para «'+esc(ui.q)+'»',tot?tot+' coincidencia(s)':'','')+
   (tot?`<div class="stack">
    ${sec('Proyectos',P,p=>`<tr class="click" data-goto="#proyecto-${p.id}"><td><b>${esc(p.nombre)}</b><br><small class="muted">${esc(cliName(p.clienteId))} · ${esc(p.tipo)}</small></td><td class="num">${badge(p.estado,KIND_PROY[p.estado])}</td></tr>`)}
    ${sec('Clientes',C,c=>`<tr class="click" data-goto="#cliente-${c.id}"><td><b>${esc(c.nombre)}</b><br><small class="muted">${esc(c.tipoId)} ${esc(c.numId)}</small></td><td class="num"><small>${DB.proyectos.filter(p=>p.clienteId===c.id).length} proyecto(s)</small></td></tr>`)}
@@ -640,27 +638,18 @@ function vBuscar(){
 
 /* ---------- Acerca ---------- */
 function vAcerca(){
-  const T=[['RF-01','Registrar potencial cliente','Potenciales clientes → «Registrar»'],['RF-02','Actualizar y consultar potenciales','Potenciales clientes → clic en la fila; filtros por estado'],['RF-03','Convertir en cliente','Botón «Convertir a cliente» (pide cédula/pasaporte y confirmación de contrato)'],
-   ['RF-04','Gestionar clientes','Clientes → ficha con sus proyectos'],['RF-05','Registrar proyecto','«Nuevo proyecto» (exige cliente existente)'],['RF-06','Actualizar y consultar proyecto','Ficha del proyecto → Resumen → Editar'],
-   ['RF-07','Clasificar proyectos','Campo «Tipo de servicio» + filtro por tipo en Proyectos'],['RF-08','Cambiar estado','Selector de estado en la ficha (solo transiciones permitidas)'],['RF-09','Gestionar proveedores','Proveedores → categorías, ficha y alternativas'],
-   ['RF-10','Gestionar materiales y productos','Materiales → catálogo con proveedores'],['RF-11','Relacionar proveedores y proyectos','Ficha del proyecto → pestaña Proveedores (considerado/seleccionado)'],['RF-12','Relacionar materiales y proyectos','Ficha del proyecto → pestaña Materiales'],
-   ['RF-13','Registrar actividades','Ficha del proyecto → Actividades; plan de acción por tipo'],['RF-14','Actualizar actividades y calendario','Calendario mensual; clic en actividad → editar o abrir proyecto'],['RF-15','Consultar información relacionada','Barra de búsqueda superior + fichas con relaciones'],
-   ['RF-16','Referencia a cotización','Ficha del proyecto → Cotizaciones'],['RF-17','Controlar acceso','Pantalla de ingreso; usuario «consulta» demuestra el bloqueo por rol']];
-  const N=[['RNF-01','Usabilidad','Formularios con campos obligatorios marcados (*) y ayudas visibles.'],['RNF-02','Integridad','No se puede crear un proyecto sin cliente existente (validado también por la base de datos).'],['RNF-03','Privacidad','Todo requiere ingreso; contraseñas cifradas; el rol de consulta no puede modificar.'],
-   ['RNF-04','Recuperación','Ante un error, el formulario conserva los valores y marca el campo.'],['RNF-05','Adaptabilidad','Proyectos válidos sin proveedores, materiales ni actividades (ej. «Anteproyecto casa de playa»).']];
   return ph('Acerca del <b>prototipo</b>','Prototipo funcional del ERS v1.0 de Anémona Design Studio — IC5821, Grupo 01.','')+
   `<div class="stack"><section class="card"><h3>Tecnología</h3><div class="dgrid">
    <div><small>Interfaz</small><span>HTML5, CSS3 y JavaScript</span></div><div><small>Servidor</small><span>Python 3 (biblioteca estándar), API REST</span></div><div><small>Base de datos</small><span>SQLite</span></div>
    <div class="full"><small>Modo actual</small><span>${MODO==='api'?'Servidor con base de datos SQLite: los datos se comparten entre quienes usen este servidor.':'Demostración: los datos se guardan solo en este navegador. Para usar la base de datos, ejecute <code>python servidor/servidor.py</code> y abra http://localhost:8000.'}</span></div></div></section>
-  <section class="card"><h3>Matriz de trazabilidad RF → pantalla</h3><div class="tblwrap"><table class="tbl trace"><thead><tr><th>Código</th><th>Requisito</th><th>Dónde se verifica</th></tr></thead><tbody>${T.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</tbody></table></div></section>
-  <section class="card"><h3>Requisitos no funcionales</h3><table class="tbl trace"><tbody>${N.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</tbody></table></section>
+  <section class="card"><h3>Documentación</h3><p style="margin:0">La relación entre cada requisito del ERS, la pantalla donde se implementa y la prueba que lo verifica está en el repositorio, en <code>docs/02-matriz-de-trazabilidad.md</code>.</p></section>
   <section class="card"><h3>Supuestos del prototipo (validar con Anémona)</h3><ul>
    <li><b>Estados de proyecto:</b> ${ESTADOS.join(' → ')}. Transiciones: ${Object.entries(TRANS).filter(([k,v])=>v.length).map(([k,v])=>`${k} → ${v.join(' / ')}`).join('; ')}. Finalizado y Cancelado son estados finales.</li>
    <li><b>Estados de seguimiento de potenciales clientes:</b> ${EST_LEAD.join(', ')}.</li>
    <li><b>Plan de acción por tipo de servicio:</b> actividades y plazos sugeridos a partir de la minuta 01 (tema 3); son editables y deben validarse.</li>
    <li><b>Cédula</b> de 9 dígitos; <b>pasaporte</b> de 6 a 20 caracteres alfanuméricos.</li>
    <li><b>Duplicados:</b> se considera la misma persona si coincide el nombre, el teléfono o el correo.</li>
-   <li><b>Roles:</b> Gabriela y María José tienen los mismos permisos; el usuario «consulta» existe solo para demostrar RF-17.</li></ul></section>
+   <li><b>Roles:</b> Gabriela y María José tienen los mismos permisos; el usuario «consulta» existe solo para demostrar el control de acceso por rol.</li></ul></section>
   <section class="card"><h3>Fuera del alcance (ERS 2.11)</h3><ul><li>Generación de cotizaciones, notificaciones automáticas, archivo de fotos y renders, historial de cambios, eliminación de clientes.</li></ul></section></div>`}
 const notFound=t=>ph('No encontrado','El '+t+' solicitado no existe.','')+`<a class="btn ghost" href="#inicio">Volver al inicio</a>`;
 
@@ -707,7 +696,6 @@ const ACT={
   editMat(id){if(!can()){location.hash='#materiales';needEdit();return}formMat(byId('materiales',id))}
 };
 const CHG={
-  toggleRF(el){document.body.classList.toggle('show-rf',el.checked)},
   pfTipo(el){ui.pf.tipo=el.value;render()},pfEstado(el){ui.pf.estado=el.value;render()},pfQ(el){ui.pf.q=el.value;render()},
   matCat(el){ui.matCat=el.value;render()},calResp(el){ui.calResp=el.value;render()},
   estadoProy(el){const nv=el.value;if(!nv)return;if(!needEdit()){render();return}

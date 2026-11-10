@@ -1,6 +1,6 @@
 # Resultados de las pruebas de aceptación
 
-Ejecución: 2026-11-08 12:02 · **59 de 59 ejecuciones aprobadas** (31 pruebas × modos servidor, demostración)
+Ejecución: 2026-11-09 21:58 · **59 de 59 ejecuciones aprobadas** (31 pruebas × modos servidor, demostración)
 
 Generado automáticamente por `pruebas/pruebas_aceptacion.py`. Cada prueba verifica un criterio de aceptación (CA) de un caso de uso del ERS o un requisito no funcional. Las pruebas PA-29 a PA-31 verifican la base de datos y solo aplican al modo servidor.
 

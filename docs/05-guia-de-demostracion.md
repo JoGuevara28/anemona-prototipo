@@ -7,8 +7,7 @@ Guion para presentar el prototipo en clase o ante Anémona (unos 12–15 minutos
 1. Ejecutar `python servidor/servidor.py` (o doble clic en `iniciar-windows.bat`) y abrir **http://localhost:8000**.
 2. Comprobar que la barra lateral diga «Base de datos SQLite conectada».
 3. Ingresar como `gabriela` y pulsar **«Restablecer datos de ejemplo»** (menú lateral, abajo).
-4. Dejar activada la casilla «Mostrar trazabilidad (RF)».
-5. Tener a mano un PDF cualquiera para el paso de cotizaciones.
+4. Tener a mano un PDF cualquiera para el paso de cotizaciones.
 
 ---
 
@@ -66,7 +65,7 @@ Luego abrir **Anteproyecto casa de playa**: no tiene proveedores ni materiales y
 3. (Opcional) Abrir `servidor/db/anemona.db` con DB Browser for SQLite y mostrar las tablas.
 
 ### 10. Cierre (1 min)
-Mostrar **Acerca del prototipo** (tecnología, matriz de trazabilidad y supuestos) y mencionar las pruebas automáticas:
+Mostrar **Acerca del prototipo** (tecnología y supuestos) y la matriz de trazabilidad en `docs/02-matriz-de-trazabilidad.md` y mencionar las pruebas automáticas:
 
 - **59 ejecuciones de pruebas de aceptación** (31 pruebas en dos modos);
 - **29 pruebas de API y base de datos**.

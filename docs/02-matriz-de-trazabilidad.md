@@ -4,7 +4,7 @@ Una **matriz de trazabilidad** relaciona cada requisito con el lugar donde se im
 
 Las pruebas `PA-xx` están en [`pruebas/pruebas_aceptacion.py`](../pruebas/pruebas_aceptacion.py) y su último resultado en [`pruebas/resultados.md`](../pruebas/resultados.md). Las pruebas de API y base de datos (`test_…`) están en [`pruebas/pruebas_api.py`](../pruebas/pruebas_api.py).
 
-Cada regla se aplica en tres capas: **interfaz** (`prototipo/js/app.js`), **servidor** (`servidor/logica.py`) y **base de datos** (`servidor/db/esquema.sql`). Ver [`08-arquitectura.md`](08-arquitectura.md). En el prototipo, cada pantalla y formulario muestra su código RF (se puede ocultar con «Mostrar trazabilidad»).
+Cada regla se aplica en tres capas: **interfaz** (`prototipo/js/app.js`), **servidor** (`servidor/logica.py`) y **base de datos** (`servidor/db/esquema.sql`). Ver [`08-arquitectura.md`](08-arquitectura.md).
 
 ## Requisitos funcionales
 
