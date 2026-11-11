@@ -741,3 +741,317 @@ window.addEventListener('hashchange',()=>{closeModal();render();window.scrollTo(
   }
   render();
 })();
+
+/* ================= COTIZADOR DE MATERIALES ================= */
+/* Pegar al final de app.js; no modifica otras funciones. */
+
+const COT_BORRADOR = LS + '-cot-borrador';
+let cotFilas = [];
+
+try {
+  const datos = JSON.parse(
+    localStorage.getItem(COT_BORRADOR) || '[]'
+  );
+  if (Array.isArray(datos)) cotFilas = datos;
+} catch (e) {}
+
+function cotGuardar() {
+  try {
+    localStorage.setItem(
+      COT_BORRADOR,
+      JSON.stringify(cotFilas)
+    );
+  } catch (e) {}
+}
+
+function cotCantidad(valor) {
+  const numero = Number(valor);
+  return Number.isFinite(numero) && numero > 0
+    ? numero : 0;
+}
+
+function cotPrecio(material) {
+  if (!material ||
+      material.precioRef === '' ||
+      material.precioRef == null) return null;
+
+  const precio = Number(material.precioRef);
+
+  return Number.isFinite(precio) && precio >= 0
+    ? precio : null;
+}
+
+function cotTotal() {
+  return cotFilas.reduce((total, fila) => {
+    const precio = cotPrecio(
+      byId('materiales', fila.materialId)
+    );
+    return total +
+      cotCantidad(fila.cantidad) * (precio ?? 0);
+  }, 0);
+}
+
+function vCotizador() {
+  const materiales = DB.materiales.slice().sort(
+    (a, b) => a.nombre.localeCompare(b.nombre, 'es')
+  );
+
+  const filas = cotFilas.map((fila, i) => {
+    const material = byId('materiales', fila.materialId);
+    const precio = cotPrecio(material);
+
+    const proveedores = material
+      ? (material.proveedorIds || [])
+          .map(id => byId('proveedores', id)?.nombre)
+          .filter(Boolean)
+          .join(', ')
+      : '';
+
+    return `<tr>
+      <td>
+        <select data-cot-material="${i}"
+          ${can() ? '' : 'disabled'}>
+          <option value="">Seleccioná un material...</option>
+          ${materiales.map(m =>
+            opt([m.id, m.nombre], fila.materialId)
+          ).join('')}
+        </select>
+
+        <small class="muted cot-prov">
+          ${material
+            ? 'Proveedor: ' +
+              esc(proveedores || 'No asignado')
+            : 'Elegí un material del catálogo'}
+        </small>
+      </td>
+
+      <td>
+        <input type="number"
+          min="0.01"
+          step="any"
+          value="${esc(fila.cantidad)}"
+          data-cot-cantidad="${i}"
+          ${can() ? '' : 'disabled'}>
+      </td>
+
+      <td>${esc(material?.unidad || '—')}</td>
+
+      <td>
+        ${precio === null
+          ? 'Sin precio'
+          : money(precio)}
+      </td>
+
+      <td class="num" data-cot-subtotal="${i}">
+        ${precio === null
+          ? '—'
+          : money(precio * cotCantidad(fila.cantidad))}
+      </td>
+
+      <td>
+        ${can()
+          ? `<button class="btn ghost sm"
+               data-act="cotQuitar"
+               data-id="${i}">Quitar</button>`
+          : ''}
+      </td>
+    </tr>`;
+  }).join('');
+
+  return ph(
+    'Cotizador de <b>materiales</b>',
+    'Elegí los materiales y sus cantidades para calcular el presupuesto.',
+    ''
+  ) + `
+    <section class="card cot-card">
+
+      <p class="cot-hint">
+        El precio se configura en
+        <a href="#materiales">Materiales</a>
+        → Precio de referencia (₡).
+        Se utilizan tus proveedores registrados.
+      </p>
+
+      <div class="cot-gridwrap">
+        <table class="tbl cot-table">
+          <thead>
+            <tr>
+              <th>Material / proveedor</th>
+              <th>Cantidad</th>
+              <th>Unidad</th>
+              <th>Precio unitario</th>
+              <th class="num">Subtotal</th>
+              <th></th>
+            </tr>
+          </thead>
+
+          <tbody>
+            ${filas || `<tr>
+              <td colspan="6">
+                Todavía no agregaste materiales.
+              </td>
+            </tr>`}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="cot-actions">
+        ${can() ? `
+          <button class="btn" data-act="cotAgregar">
+            + Agregar material
+          </button>
+
+          <button class="btn ghost" data-act="cotLimpiar">
+            Limpiar
+          </button>
+        ` : ''}
+      </div>
+
+      <div class="cot-total">
+        <div class="grand">
+          <span>Total</span>
+          <strong data-cot-total>
+            ${money(cotTotal())}
+          </strong>
+        </div>
+      </div>
+
+      <small class="muted">
+        Este presupuesto es un borrador guardado
+        en este navegador. Los materiales sin
+        precio no se suman al total.
+      </small>
+
+    </section>`;
+}
+
+/* Agregar Cotizador al menú */
+
+if (!NAV.some(([clave]) => clave === 'cotizador')) {
+  const posicion = NAV.findIndex(
+    ([clave]) => clave === 'acerca'
+  );
+
+  NAV.splice(
+    posicion < 0 ? NAV.length : posicion,
+    0,
+    ['cotizador', 'Cotizador']
+  );
+}
+
+/* Mostrar el cotizador sin alterar las otras pantallas */
+
+const renderAnterior = render;
+
+render = function () {
+  if (USER && location.hash === '#cotizador') {
+    $('#app').innerHTML = shell(
+      'cotizador',
+      vCotizador()
+    );
+  } else {
+    renderAnterior();
+  }
+};
+
+/* Botones del cotizador */
+
+ACT.cotAgregar = function () {
+  if (!needEdit()) return;
+
+  cotFilas.push({
+    materialId: '',
+    cantidad: 1
+  });
+
+  cotGuardar();
+  render();
+};
+
+ACT.cotQuitar = function (indice) {
+  if (!needEdit()) return;
+
+  cotFilas.splice(Number(indice), 1);
+
+  cotGuardar();
+  render();
+};
+
+ACT.cotLimpiar = function () {
+  if (!needEdit()) return;
+
+  cotFilas = [];
+
+  cotGuardar();
+  render();
+};
+
+/* Actualización automática de los cálculos */
+
+function cotActualizarSubtotales() {
+  cotFilas.forEach((fila, i) => {
+    const celda = document.querySelector(
+      `[data-cot-subtotal="${i}"]`
+    );
+
+    const precio = cotPrecio(
+      byId('materiales', fila.materialId)
+    );
+
+    if (celda) {
+      celda.textContent = precio === null
+        ? '—'
+        : money(precio * cotCantidad(fila.cantidad));
+    }
+  });
+
+  const total = document.querySelector(
+    '[data-cot-total]'
+  );
+
+  if (total) {
+    total.textContent = money(cotTotal());
+  }
+}
+
+/* Detectar cambios de cantidad */
+
+document.addEventListener('input', e => {
+  const elemento = e.target.closest(
+    '[data-cot-cantidad]'
+  );
+
+  if (!elemento || !can()) return;
+
+  const fila = cotFilas[
+    Number(elemento.dataset.cotCantidad)
+  ];
+
+  if (!fila) return;
+
+  fila.cantidad = elemento.value;
+
+  cotGuardar();
+  cotActualizarSubtotales();
+});
+
+/* Detectar selección de materiales */
+
+document.addEventListener('change', e => {
+  const elemento = e.target.closest(
+    '[data-cot-material]'
+  );
+
+  if (!elemento || !can()) return;
+
+  const fila = cotFilas[
+    Number(elemento.dataset.cotMaterial)
+  ];
+
+  if (!fila) return;
+
+  fila.materialId = elemento.value;
+
+  cotGuardar();
+  render();
+});

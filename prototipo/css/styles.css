@@ -1,7 +1,7 @@
 /* =====================================================================
    Anémona Design Studio · hoja de estilos del prototipo
    Paleta tomada de la identidad visual del estudio: crema, negro,
-   madera clara, piedra y tonos tierra suaves. Ver docs/09-guia-de-estilo.md
+   madera clara, piedra y tonos tierra suaves. Ver docs/09-guia-de-estilo.md pureba
    ===================================================================== */
 :root{
   --crema:#f3eee6;      /* fondo general (círculo del logo) */
@@ -278,4 +278,163 @@ li{margin:4px 0}
   .login{grid-template-columns:1fr}.login .art{display:none}
   .cal .day{min-height:70px}.ev{font-size:10.5px}
   .pitem{grid-template-columns:1fr}
+}
+
+/* ===== COTIZADOR DE MATERIALES ===== */
+
+.cot-card {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.cot-top {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.cot-top .field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.cot-top input,
+.cot-top select,
+.cot-table input,
+.cot-adjust input,
+.cot-add input {
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--linea);
+  border-radius: 8px;
+  background: var(--papel);
+  color: var(--tinta);
+}
+
+.cot-hint {
+  font-size: 13px;
+  color: var(--gris);
+  background: var(--suave);
+  padding: 12px;
+  border-radius: 9px;
+}
+
+.cot-gridwrap {
+  overflow-x: auto;
+}
+
+.cot-table {
+  min-width: 780px;
+}
+
+.cot-table td:first-child {
+  min-width: 280px;
+}
+
+.cot-table td:nth-child(2) {
+  width: 105px;
+}
+
+.cot-table td:nth-child(3) {
+  width: 145px;
+}
+
+.cot-table td:nth-child(4) {
+  width: 160px;
+}
+
+.cot-table input {
+  padding: 8px;
+}
+
+.cot-table select {
+  width: 100%;
+  min-width: 240px;
+  padding: 9px;
+  border: 1px solid var(--linea);
+  border-radius: 8px;
+  background: var(--papel);
+  color: var(--tinta);
+}
+
+.cot-prov {
+  display: block;
+  margin-top: 6px;
+  line-height: 1.35;
+}
+
+.cot-add,
+.cot-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cot-add form {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  min-width: 270px;
+}
+
+.cot-add form input {
+  flex: 1;
+}
+
+.cot-bottom {
+  display: grid;
+  grid-template-columns: 1fr 290px;
+  gap: 20px;
+}
+
+.cot-adjust {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  align-content: start;
+}
+
+.cot-adjust .field {
+  width: 130px;
+}
+
+.cot-adjust small {
+  width: 100%;
+}
+
+.cot-total {
+  padding: 20px;
+  background: var(--suave);
+  border-radius: 12px;
+}
+
+.cot-total > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+}
+
+.cot-total .grand {
+  font-size: 20px;
+  font-weight: 700;
+  border-top: 1px solid var(--linea);
+  margin-top: 10px;
+  padding-top: 16px;
+}
+
+@media (max-width: 800px) {
+  .cot-bottom,
+  .cot-top {
+    grid-template-columns: 1fr;
+  }
+
+  .cot-add form {
+    min-width: 100%;
+    flex-wrap: wrap;
+  }
 }
