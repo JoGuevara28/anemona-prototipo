@@ -98,6 +98,7 @@ Cada rol ve una aplicación distinta al ingresar. La matriz completa está en [`
     ├── 08-arquitectura.md             capas, API REST, seguridad
     ├── 09-guia-de-estilo.md           colores y tipografía de la marca
     ├── 10-roles-y-permisos.md         qué ve y qué puede hacer cada rol
+    ├── 11-solicitud-de-cambio-SC-01.md  propuesta: acceso de clientes (RF-18, RF-19)
     └── glosario.md                    términos y siglas
 ```
 
