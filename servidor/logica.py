@@ -35,7 +35,7 @@ CATEGORIAS = ["Iluminación", "Mobiliario", "Ebanistería", "Construcción", "Ac
 UNIDADES = ["unidad", "m²", "metro lineal", "lámina", "galón", "juego", "servicio"]
 CONDICIONES = ["Considerado", "Seleccionado"]
 EST_COT = ["Enviada", "Aceptada", "Rechazada"]
-RESPONSABLES = ["Gabriela Núñez", "María José", "Daniel Rojas", "Colaborador externo"]
+RESPONSABLES = ["Gabriela Núñez", "María José", "Colaborador externo"]
 TIPOS_ID = ["Cédula", "Pasaporte"]
 PLAN = {
     "Anteproyecto": [("Reunión inicial con el cliente", 0), ("Levantamiento del sitio", 5), ("Propuesta conceptual", 14, 1), ("Revisión con el cliente", 18), ("Ajustes y entrega del anteproyecto", 28, 1)],
@@ -49,14 +49,17 @@ PLAN = {
 ROLES = [
     ("propietaria", "Propietaria", 1, "todo", 1, "todos"),
     ("arquitecta", "Arquitecta", 1, "todo", 0, "todos"),
-    ("colaborador", "Personal interno", 0, "actividades", 0, "participa"),
+    ("colaborador", "Personal interno", 0, "actividades", 0, "participa"),  # ERS §2.9; sin cuenta de ejemplo
+    ("cliente", "Cliente", 0, "nada", 0, "propios"),                       # SC-01: solo consulta sus proyectos
 ]
 USUARIOS = [  # (usuario, contraseña de demostración, nombre, iniciales, rol)
     ("gabriela", "anemona2026", "Gabriela Núñez", "GN", "propietaria"),
     ("mariajose", "anemona2026", "María José", "MJ", "arquitecta"),
-    ("colaborador", "colaborador2026", "Daniel Rojas", "DR", "colaborador"),
 ]
-VERSION_ESQUEMA = 2
+# Cuenta de cliente de ejemplo (SC-01): Laura Méndez, clienta ficticia con dos proyectos
+CUENTA_CLIENTE_DEMO = ("cliente", "cliente2026", "c1")
+VERSION_ESQUEMA = 3
+RE_USUARIO = re.compile(r"^[a-z0-9._-]{3,30}$")
 DURACION_SESION = dt.timedelta(hours=8)
 MAX_ARCHIVO = 10 * 1024 * 1024  # 10 MB
 EXT_PERMITIDAS = (".pdf", ".png", ".jpg", ".jpeg", ".docx")
@@ -156,7 +159,9 @@ def crear_bd(ruta, reiniciar: bool = False) -> None:
 
 
 def reiniciar_datos(con: sqlite3.Connection) -> None:
-    """Borra todos los datos de negocio y vuelve a cargar los de ejemplo (conserva usuarios y sesiones)."""
+    """Borra todos los datos de negocio y vuelve a cargar los de ejemplo (conserva usuarios del estudio y sus sesiones)."""
+    con.execute("DELETE FROM sesion WHERE usuario_id IN (SELECT id FROM usuario WHERE rol='cliente')")
+    con.execute("DELETE FROM usuario WHERE rol='cliente'")
     for t in ["cotizacion", "proyecto_material", "proyecto_proveedor", "material_proveedor", "material",
               "proveedor_categoria", "proveedor", "actividad", "proyecto", "potencial_cliente", "cliente"]:
         con.execute(f"DELETE FROM {t}")
@@ -186,7 +191,7 @@ def sembrar(con: sqlite3.Connection) -> None:
         con.execute("INSERT INTO rol VALUES (?,?,?,?,?,?)", r)
     for usuario, clave, nombre, ini, rol in USUARIOS:
         sal = secrets.token_hex(16)
-        con.execute("INSERT INTO usuario VALUES (?,?,?,?,?,?,?)",
+        con.execute("INSERT INTO usuario (id,usuario,nombre,iniciales,rol,clave_hash,clave_sal) VALUES (?,?,?,?,?,?,?)",
                     (nuevo_id("u"), usuario, nombre, ini, rol, hash_clave(clave, sal), sal))
     sembrar_negocio(con)
 
@@ -226,15 +231,10 @@ def sembrar_negocio(con: sqlite3.Connection) -> None:
         elif "planos" in a["nombre"]:
             a["estado"] = "En proceso"
         _insertar_actividad(con, a)
-    # Daniel Rojas (personal interno) participa en el mueble de TV y en la remodelación de cocina
     for a in _plan(con, "p2", "Mobiliario a medida", _d(-15)):
         a["estado"] = "Completada" if a["fecha"] < T else ("En proceso" if a["nombre"] == "Fabricación" else "Pendiente")
-        if a["nombre"] in ("Coordinación con ebanista", "Fabricación", "Instalación y entrega"):
-            a["responsable"] = "Daniel Rojas"
         _insertar_actividad(con, a)
     for a in _plan(con, "p3", "Remodelación", _d(5)):
-        if a["nombre"] == "Selección de materiales":
-            a["responsable"] = "Daniel Rojas"
         _insertar_actividad(con, a)
     proveedores = [
         ("v1", "Luz & Forma", ["Iluminación"], "Pamela Ruiz", "8811-2233", "ventas@luzyforma.cr", "Lámparas colgantes, apliques, cintas LED.", "Responde rápido; buena experiencia previa."),
@@ -265,6 +265,8 @@ def sembrar_negocio(con: sqlite3.Connection) -> None:
         con.execute("INSERT INTO proyecto_material VALUES (?,?,?,?,?,?)", r)
     con.execute("INSERT INTO cotizacion (id,proyecto_id,codigo,fecha,monto,estado,enlace,archivo_nombre) VALUES (?,?,?,?,?,?,?,?)",
                 ("q1", "p1", "COT-2026-014", _d(-28), 1800000, "Aceptada", "https://www.canva.com/", ""))
+    usuario, clave, cliente_id = CUENTA_CLIENTE_DEMO
+    _crear_cuenta_cliente(con, cliente_id, usuario, clave)
 
 
 # --------------------------------------------------------------------------- lectura
@@ -315,6 +317,8 @@ def filtrar_por_rol(d: dict, usuario: dict, participa: set) -> dict:
     p = usuario["permisos"]
     if p["alcance"] == "todos" and p["comercial"]:
         return d
+    if p["alcance"] == "propios":
+        return _vista_cliente(d, usuario["clienteId"])
     if p["alcance"] == "participa":
         en = lambda x: x["proyectoId"] in participa  # noqa: E731
         d["proyectos"] = [x for x in d["proyectos"] if x["id"] in participa]
@@ -331,9 +335,28 @@ def filtrar_por_rol(d: dict, usuario: dict, participa: set) -> dict:
     return d
 
 
+def _vista_cliente(d: dict, cliente_id: str) -> dict:
+    """SC-01 / RF-19: el cliente ve solo sus proyectos, con avance, entregables y sus cotizaciones."""
+    propios = {p["id"] for p in d["proyectos"] if p["clienteId"] == cliente_id}
+    for p in d["proyectos"]:  # el avance se calcula con todas las actividades, igual que lo ve el estudio
+        acts = [a for a in d["actividades"] if a["proyectoId"] == p["id"]]
+        p["avance"] = {"hechas": sum(a["estado"] == "Completada" for a in acts), "total": len(acts)}
+    vacio = {k: [] for k in d}
+    return {**vacio,
+            "proyectos": [p for p in d["proyectos"] if p["id"] in propios],
+            "actividades": [a for a in d["actividades"] if a["proyectoId"] in propios and a["entregable"]],
+            "cotizaciones": [c for c in d["cotizaciones"] if c["proyectoId"] in propios],
+            "clientes": [c for c in d["clientes"] if c["id"] == cliente_id]}
+
+
 def datos(con, usuario: dict | None = None) -> dict:
     """Los registros que el usuario puede ver, con las claves que usa la interfaz."""
     d = _todos_los_datos(con)
+    if usuario and usuario["permisos"]["comercial"] and usuario["permisos"]["edita"] == "todo":
+        d["accesos"] = [{"clienteId": f["cliente_id"], "usuario": f["usuario"], "activo": bool(f["activo"])}
+                        for f in con.execute("SELECT cliente_id, usuario, activo FROM usuario WHERE rol='cliente'")]
+    else:
+        d["accesos"] = []
     return filtrar_por_rol(d, usuario, proyectos_donde_participa(con, usuario)) if usuario else d
 
 
@@ -389,6 +412,8 @@ def iniciar_sesion(con, usuario: str, clave: str) -> tuple[str, dict]:
     f = con.execute(_SQL_USUARIO + " WHERE u.usuario=?", (txt(usuario).lower(),)).fetchone()
     if not f or not secrets.compare_digest(f["clave_hash"], hash_clave(clave or "", f["clave_sal"])):
         raise NoAutenticado()
+    if not f["activo"]:
+        raise NoAutenticado("Su acceso está desactivado. Comuníquese con Anémona Design Studio.")
     token = secrets.token_urlsafe(32)
     con.execute("DELETE FROM sesion WHERE expira < ?", (ahora_iso(),))
     con.execute("INSERT INTO sesion VALUES (?,?,?)", (token, f["id"], (dt.datetime.now() + DURACION_SESION).isoformat(timespec="seconds")))
@@ -400,21 +425,24 @@ VISTAS_BASE = ["inicio", "proyectos", "calendario", "proveedores", "materiales",
 VISTAS_COMERCIALES = ["potenciales", "clientes", "cotizador"]
 
 
+VISTAS_CLIENTE = ["inicio", "proyectos"]
+
+
 def permisos_de(ve_comercial, edita, administra, alcance) -> dict:
-    return {"vistas": VISTAS_BASE + (VISTAS_COMERCIALES if ve_comercial else []), "comercial": bool(ve_comercial),
-            "edita": edita, "admin": bool(administra), "alcance": alcance}
+    vistas = VISTAS_CLIENTE if alcance == "propios" else VISTAS_BASE + (VISTAS_COMERCIALES if ve_comercial else [])
+    return {"vistas": vistas, "comercial": bool(ve_comercial), "edita": edita, "admin": bool(administra), "alcance": alcance}
 
 
 def usuario_publico(f) -> dict:
     p = permisos_de(f["ve_comercial"], f["edita"], f["administra"], f["alcance"])
     return {"u": f["usuario"], "nombre": f["nombre"], "ini": f["iniciales"], "rolCodigo": f["rol"], "rol": f["rol_nombre"],
-            "edit": p["edita"] == "todo", "permisos": p}
+            "edit": p["edita"] == "todo", "permisos": p, "clienteId": f["cliente_id"]}
 
 
 def usuario_de_token(con, token: str | None):
     if not token:
         return None
-    f = con.execute(_SQL_USUARIO + " JOIN sesion s ON u.id=s.usuario_id WHERE s.token=? AND s.expira > ?", (token, ahora_iso())).fetchone()
+    f = con.execute(_SQL_USUARIO + " JOIN sesion s ON u.id=s.usuario_id WHERE s.token=? AND s.expira > ? AND u.activo=1", (token, ahora_iso())).fetchone()
     return usuario_publico(f) if f else None
 
 
@@ -918,3 +946,57 @@ def editar_cotizacion(con, qid, v):
     con.execute("UPDATE cotizacion SET codigo=?,fecha=?,monto=?,estado=?,enlace=?,archivo_nombre=?,archivo_tipo=?,archivo_datos=? WHERE id=?",
                 (txt(v["codigo"]), v["fecha"], num_o_none(v.get("monto")), v["estado"], txt(v.get("enlace")), nombre, tipo, datos_, qid))
     return {"id": qid}
+
+
+# --------------------------------------------------------------------------- acceso de clientes (SC-01: RF-18, CU-18)
+def _iniciales(nombre: str) -> str:
+    partes = [x for x in nombre.split() if x]
+    return (partes[0][0] + (partes[1][0] if len(partes) > 1 else "")).upper() if partes else "CL"
+
+
+def _crear_cuenta_cliente(con, cliente_id: str, usuario: str, clave: str) -> str:
+    c = con.execute("SELECT nombre FROM cliente WHERE id=?", (cliente_id,)).fetchone()
+    sal, uid = secrets.token_hex(16), nuevo_id("u")
+    con.execute("INSERT INTO usuario (id,usuario,nombre,iniciales,rol,clave_hash,clave_sal,cliente_id,activo) VALUES (?,?,?,?, 'cliente',?,?,?,1)",
+                (uid, usuario, c["nombre"], _iniciales(c["nombre"]), hash_clave(clave, sal), sal, cliente_id))
+    return uid
+
+
+def dar_acceso_cliente(con, cliente_id: str, v: dict):
+    """RF-18: crea la cuenta de solo consulta de un cliente registrado (RN-04, RN-05)."""
+    _existe(con, "cliente", cliente_id)
+    if con.execute("SELECT 1 FROM usuario WHERE cliente_id=?", (cliente_id,)).fetchone():
+        raise ReglaError({"usuario": "Este cliente ya tiene una cuenta. Puede activarla o desactivarla."})
+    val = Validador(v)
+    val.req("usuario", "clave")
+    usuario = val("usuario").lower()
+    if usuario and not RE_USUARIO.match(usuario):
+        val.error("usuario", "Use de 3 a 30 letras minúsculas, números, punto, guion o guion bajo.")
+    if val("clave") and len(val("clave")) < 8:
+        val.error("clave", "La contraseña debe tener al menos 8 caracteres.")
+    val.fin()
+    if con.execute("SELECT 1 FROM usuario WHERE usuario=?", (usuario,)).fetchone():
+        raise ReglaError({"usuario": "Ese nombre de usuario ya está en uso."})
+    _crear_cuenta_cliente(con, cliente_id, usuario, v["clave"])
+    return {"id": cliente_id, "usuario": usuario}
+
+
+def cambiar_acceso_cliente(con, cliente_id: str, v: dict):
+    """RF-18: activa o desactiva la cuenta; al desactivar se cierran sus sesiones (RN-05)."""
+    f = con.execute("SELECT id FROM usuario WHERE cliente_id=?", (cliente_id,)).fetchone()
+    if not f:
+        raise NoEncontrado()
+    activo = bool(v.get("activo"))
+    con.execute("UPDATE usuario SET activo=? WHERE id=?", (1 if activo else 0, f["id"]))
+    if not activo:
+        con.execute("DELETE FROM sesion WHERE usuario_id=?", (f["id"],))
+    return {"id": cliente_id, "activo": activo}
+
+
+def puede_ver_cotizacion(con, usuario: dict, cotizacion_id: str) -> bool:
+    if usuario["permisos"]["comercial"]:
+        return True
+    if usuario["permisos"]["alcance"] == "propios":
+        f = con.execute("SELECT p.cliente_id FROM cotizacion q JOIN proyecto p ON p.id=q.proyecto_id WHERE q.id=?", (cotizacion_id,)).fetchone()
+        return bool(f) and f[0] == usuario["clienteId"]
+    return False

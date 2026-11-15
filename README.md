@@ -24,9 +24,10 @@ La interfaz sigue la identidad visual del estudio: crema, negro, madera y tonos 
 | Requisitos funcionales cubiertos | **17 de 17** (RF-01 a RF-17) |
 | Requisitos no funcionales verificados | **5 de 5** (RNF-01 a RNF-05) |
 | Reglas de negocio aplicadas | RN-01, RN-02, RN-03 e IE-01, **en la interfaz, en el servidor y en la base de datos** |
-| Roles | **3 roles con vistas distintas**: propietaria, arquitecta y personal interno → [`docs/10-roles-y-permisos.md`](docs/10-roles-y-permisos.md) |
+| Roles | **3 cuentas con vistas distintas**: propietaria, arquitecta y cliente → [`docs/10-roles-y-permisos.md`](docs/10-roles-y-permisos.md) |
+| Cambios de alcance | **SC-01** Acceso de clientes (RF-18, RF-19) → [`docs/11-solicitud-de-cambio-SC-01.md`](docs/11-solicitud-de-cambio-SC-01.md) |
 | Pruebas de aceptación (interfaz) | **65 de 65 aprobadas** (34 pruebas en dos modos) → [`pruebas/resultados.md`](pruebas/resultados.md) |
-| Pruebas de API y base de datos | **34 de 34 aprobadas** → `pruebas/pruebas_api.py` |
+| Pruebas de API y base de datos | **37 de 37 aprobadas** → `pruebas/pruebas_api.py` |
 
 ## Lenguajes y tecnologías
 
@@ -68,7 +69,7 @@ Cada rol ve una aplicación distinta al ingresar. La matriz completa está en [`
 |---|---|---|---|
 | `gabriela` | `anemona2026` | Propietaria | Todo el estudio; administra el sistema |
 | `mariajose` | `anemona2026` | Arquitecta | Sus actividades primero; consulta y modifica todo (como indicó Gabriela en la minuta) |
-| `colaborador` | `colaborador2026` | Personal interno (Daniel Rojas, ficticio) | Solo los proyectos en los que participa; actualiza sus actividades; sin clientes ni cotizaciones |
+| `cliente` | `cliente2026` | Cliente (Laura Méndez, ficticia) | Solo sus proyectos: estado, avance, entregables y cotizaciones. No modifica nada. Gabriela y María José dan o quitan este acceso desde la ficha del cliente. |
 
 ## Estructura del repositorio
 
@@ -85,7 +86,7 @@ Cada rol ve una aplicación distinta al ingresar. La matriz completa está en [`
 │   └── db/esquema.sql             ← definición de tablas y restricciones
 ├── pruebas/
 │   ├── pruebas_aceptacion.py      ← 34 pruebas de aceptación (Playwright)
-│   ├── pruebas_api.py             ← 34 pruebas de API y base de datos
+│   ├── pruebas_api.py             ← 37 pruebas de API y base de datos
 │   └── resultados.md              ← último resultado
 └── docs/
     ├── 01-resumen-del-caso.md         problema, stakeholders, alcance
@@ -115,7 +116,7 @@ Cada rol ve una aplicación distinta al ingresar. La matriz completa está en [`
 - La base SQLite es adecuada para un estudio pequeño. Para muchos usuarios simultáneos convendría PostgreSQL, y el esquema SQL se puede trasladar.
 - Quedan fuera del alcance, según el ERS §2.11: la generación de cotizaciones, las notificaciones automáticas, el archivo de fotos y renders y el historial de cambios.
 
-**Usuarios del prototipo:** por ahora solo lo usan los dos integrantes del equipo. Las cuentas `gabriela`, `mariajose` y `colaborador` **simulan** los roles del caso; Anémona no lo utiliza.
+**Usuarios del prototipo:** por ahora solo lo usan los dos integrantes del equipo. Las cuentas `gabriela`, `mariajose` y `cliente` **simulan** los roles del caso; Anémona no lo utiliza.
 
 ## Declaración de uso de IA
 

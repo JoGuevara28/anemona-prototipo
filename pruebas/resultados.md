@@ -1,8 +1,8 @@
 # Resultados de las pruebas de aceptación
 
-Ejecución: 2026-11-15 17:42 · **65 de 65 ejecuciones aprobadas** (34 pruebas × modos servidor, demostración)
+Ejecución: 2026-11-15 17:56 · **65 de 65 ejecuciones aprobadas** (34 pruebas × modos servidor, demostración)
 
-Generado automáticamente por `pruebas/pruebas_aceptacion.py`. Cada prueba verifica un criterio de aceptación (CA) de un caso de uso del ERS o un requisito no funcional. Las pruebas PA-29 a PA-31 verifican la base de datos y solo aplican al modo servidor. PA-32 a PA-34 verifican que cada rol vea una aplicación distinta.
+Generado automáticamente por `pruebas/pruebas_aceptacion.py`. Cada prueba verifica un criterio de aceptación (CA) de un caso de uso del ERS o un requisito no funcional. Las pruebas PA-29 a PA-31 verifican la base de datos y solo aplican al modo servidor. PA-32 verifica que cada rol vea una aplicación distinta; PA-33 y PA-34, el acceso de clientes (solicitud de cambio SC-01).
 
 | Código | Origen | Criterio verificado | Modo servidor | Modo demostración |
 |---|---|---|---|---|
@@ -32,11 +32,11 @@ Generado automáticamente por `pruebas/pruebas_aceptacion.py`. Cada prueba verif
 | PA-24 | CU-15 · Flujo alterno | Si no hay coincidencias se informa que no hubo resultados | ✅ Aprobada | ✅ Aprobada |
 | PA-25 | CU-16 · CA1 / Flujo alterno / RF-16 | La referencia de cotización exige enlace o documento y luego se consulta desde el proyecto | ✅ Aprobada | ✅ Aprobada |
 | PA-26 | CU-17 · CA1 / Flujo alterno 1 / RNF-03 | Sin autenticación no se ven datos y las credenciales inválidas se rechazan | ✅ Aprobada | ✅ Aprobada |
-| PA-27 | CU-17 · CA2 / Flujo alterno 2 | Si el personal interno intenta entrar a una sección de otro rol, el sistema la bloquea e informa | ✅ Aprobada | ✅ Aprobada |
-| PA-32 | RF-17 · ERS §2.9 · roles | Al ingresar, cada rol ve una aplicación distinta (menú, inicio y administración) | ✅ Aprobada | ✅ Aprobada |
-| PA-33 | RF-17 · ERS §2.9 · roles | El personal interno solo ve los proyectos en los que participa y sin datos de contacto del cliente | ✅ Aprobada | ✅ Aprobada |
-| PA-34 | RF-17 · ERS §2.9 · roles | El personal interno actualiza actividades de su proyecto, pero no el proyecto ni catálogos | ✅ Aprobada | ✅ Aprobada |
+| PA-27 | CU-17 · CA2 / Flujo alterno 2 | Si un cliente intenta entrar a una sección del estudio, el sistema la bloquea e informa | ✅ Aprobada | ✅ Aprobada |
+| PA-32 | RF-17 · roles | Al ingresar, cada rol ve una aplicación distinta (menú, inicio y administración) | ✅ Aprobada | ✅ Aprobada |
+| PA-33 | SC-01 · CU-19 / RF-19 | El cliente solo ve sus proyectos: estado, avance, entregables y su cotización, sin costos ni proveedores | ✅ Aprobada | ✅ Aprobada |
+| PA-34 | SC-01 · CU-18 / RF-18 | La arquitecta da acceso a un cliente, este ve solo lo suyo y al desactivarlo ya no puede ingresar | ✅ Aprobada | ✅ Aprobada |
 | PA-28 | RNF-05 / RN-02 | Se registra un proyecto sin proveedores, materiales ni actividades | ✅ Aprobada | ✅ Aprobada |
 | PA-29 | RF-16 / IE-01 · base de datos | El documento adjunto a una cotización se guarda y se puede abrir | ✅ Aprobada | — No aplica |
 | PA-30 | RNF-02 / RNF-03 · base de datos | Los datos quedan en la base: otra persona los ve al ingresar desde otro navegador | ✅ Aprobada | — No aplica |
-| PA-31 | RF-17 · base de datos | El servidor rechaza modificaciones de un usuario sin permiso aunque se salte la interfaz | ✅ Aprobada | — No aplica |
+| PA-31 | RF-17 · base de datos | El servidor rechaza acciones fuera del rol y no envía al cliente datos internos ni de otros clientes | ✅ Aprobada | — No aplica |

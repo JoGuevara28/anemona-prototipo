@@ -12,13 +12,13 @@
 'use strict';
 
 /* ================= Catálogos (en modo servidor se cargan desde la base) ================= */
-const LS='anemona-proto-v3';
+const LS='anemona-proto-v4';
 let TIPOS=['Anteproyecto','Diseño de interiores','Mobiliario a medida','Remodelación','Gestión de construcción'];
 let ESTADOS=['Por iniciar','En diseño','En ejecución','En pausa','Finalizado','Cancelado'];
 let TRANS={'Por iniciar':['En diseño','Cancelado'],'En diseño':['En ejecución','En pausa','Finalizado','Cancelado'],'En ejecución':['En pausa','Finalizado','Cancelado'],'En pausa':['En diseño','En ejecución','Cancelado'],'Finalizado':[],'Cancelado':[]};
 let ACTIVOS=['Por iniciar','En diseño','En ejecución'];
 let CATS=['Iluminación','Mobiliario','Ebanistería','Construcción','Acabados','Materiales','Electrodomésticos','Otros servicios'];
-let RESP=['Gabriela Núñez','María José','Daniel Rojas','Colaborador externo'];
+let RESP=['Gabriela Núñez','María José','Colaborador externo'];
 /* Plan de acción por tipo de servicio (minuta 01, tema 3) — [nombre, días desde el inicio, entregable, responsable] */
 let PLAN={
  'Anteproyecto':[['Reunión inicial con el cliente',0],['Levantamiento del sitio',5],['Propuesta conceptual',14,1],['Revisión con el cliente',18],['Ajustes y entrega del anteproyecto',28,1]],
@@ -41,15 +41,15 @@ const KIND_COT={'Enviada':'warn','Aceptada':'ok','Rechazada':'mute'};
 const ROLES_DEMO={
  propietaria:['Propietaria',1,'todo',1,'todos'],
  arquitecta:['Arquitecta',1,'todo',0,'todos'],
- colaborador:['Personal interno',0,'actividades',0,'participa']
+ colaborador:['Personal interno',0,'actividades',0,'participa'],  // ERS §2.9; sin cuenta de ejemplo
+ cliente:['Cliente',0,'nada',0,'propios']                          // SC-01: solo consulta sus proyectos
 };
 const VISTAS_BASE=['inicio','proyectos','calendario','proveedores','materiales','buscar','acerca'],VISTAS_COM=['potenciales','clientes','cotizador'];
-function permisosDe(c){const [,com,ed,adm,alc]=ROLES_DEMO[c];return {vistas:VISTAS_BASE.concat(com?VISTAS_COM:[]),comercial:!!com,edita:ed,admin:!!adm,alcance:alc}}
+function permisosDe(c){const [,com,ed,adm,alc]=ROLES_DEMO[c];return {vistas:alc==='propios'?['inicio','proyectos']:VISTAS_BASE.concat(com?VISTAS_COM:[]),comercial:!!com,edita:ed,admin:!!adm,alcance:alc}}
 /* Usuarios del modo demostración (en modo servidor se validan contra la base, con contraseña cifrada) */
 const USERS_DEMO=[
  {u:'gabriela',p:'anemona2026',nombre:'Gabriela Núñez',ini:'GN',rolCodigo:'propietaria'},
- {u:'mariajose',p:'anemona2026',nombre:'María José',ini:'MJ',rolCodigo:'arquitecta'},
- {u:'colaborador',p:'colaborador2026',nombre:'Daniel Rojas',ini:'DR',rolCodigo:'colaborador'}
+ {u:'mariajose',p:'anemona2026',nombre:'María José',ini:'MJ',rolCodigo:'arquitecta'}
 ].map(u=>({...u,rol:ROLES_DEMO[u.rolCodigo][0],permisos:permisosDe(u.rolCodigo),edit:ROLES_DEMO[u.rolCodigo][2]==='todo'}));
 const MAX_ARCHIVO=10*1024*1024;
 
@@ -111,7 +111,12 @@ function save(){if(MODO!=='demo')return;try{localStorage.setItem(LS,JSON.stringi
 /* Misma regla que logica.filtrar_por_rol en el servidor */
 function filtrarPorRol(d,u){
   const p=u.permisos;if(p.alcance==='todos'&&p.comercial)return d;
-  const v={...d};
+  if(p.alcance==='propios'){  // SC-01 / RF-19: solo sus proyectos, entregables y cotizaciones
+    const mios=new Set(d.proyectos.filter(x=>x.clienteId===u.clienteId).map(x=>x.id));const vacio={};Object.keys(d).forEach(k=>vacio[k]=[]);
+    const proy=d.proyectos.filter(x=>mios.has(x.id)).map(x=>{const a=d.actividades.filter(y=>y.proyectoId===x.id);return {...x,avance:{hechas:a.filter(y=>y.estado==='Completada').length,total:a.length}}});
+    return {...vacio,proyectos:proy,actividades:d.actividades.filter(a=>mios.has(a.proyectoId)&&a.entregable),cotizaciones:d.cotizaciones.filter(c=>mios.has(c.proyectoId)),clientes:d.clientes.filter(c=>c.id===u.clienteId)};
+  }
+  const v={...d,accesos:[]};
   if(p.alcance==='participa'){
     const part=new Set(d.actividades.filter(a=>a.responsable===u.nombre).map(a=>a.proyectoId));const en=x=>part.has(x.proyectoId);
     v.proyectos=d.proyectos.filter(x=>part.has(x.id));v.actividades=d.actividades.filter(en);v.provProy=d.provProy.filter(en);v.matProy=d.matProy.filter(en);v.cotizaciones=d.cotizaciones.filter(en);
@@ -120,6 +125,9 @@ function filtrarPorRol(d,u){
     v.clientes=d.clientes.filter(c=>vis.has(c.id)).map(c=>({id:c.id,nombre:c.nombre}));v.leads=[];v.cotizaciones=[]}
   return v;
 }
+/* Usuario de una cuenta de cliente (modo demostración) */
+function usuarioCliente(cta){const c=DBT.clientes.find(x=>x.id===cta.clienteId)||{nombre:'Cliente'};const pn=c.nombre.split(' ');
+  return {u:cta.usuario,nombre:c.nombre,ini:(pn[0][0]+(pn[1]?pn[1][0]:'')).toUpperCase(),rolCodigo:'cliente',rol:'Cliente',clienteId:cta.clienteId,permisos:permisosDe('cliente'),edit:false}}
 function vistaDemo(){if(MODO==='demo')DB=USER?filtrarPorRol(DBT,USER):DBT}
 
 async function op(nombre,a){
@@ -170,7 +178,12 @@ const OPS={
   quitarMaterial:{api:v=>['DELETE','/proyecto-materiales/'+v.id],local:v=>{DB.matProy=DB.matProy.filter(z=>z.id!==v.id);return {}}},
   crearCotizacion:{api:v=>['POST','/cotizaciones',v],local:v=>{DB.cotizaciones.push({id:uid('q'),...pick(v,'proyectoId codigo fecha monto estado enlace archivo')});return {}}},
   editarCotizacion:{api:v=>['PUT','/cotizaciones/'+v.id,v],local:v=>{Object.assign(byId('cotizaciones',v.id),pick(v,'codigo fecha monto estado enlace archivo'));return {}}},
-  reiniciar:{api:()=>['POST','/reiniciar',{}],local:()=>{DB=seed();return {}}}
+  reiniciar:{api:()=>['POST','/reiniciar',{}],local:()=>{DB=seed();return {}}},
+  darAcceso:{api:v=>['POST','/clientes/'+v.id+'/acceso',{usuario:v.usuario,clave:v.clave}],local:v=>{const usu=v.usuario.toLowerCase();
+    if(DB.accesos.some(x=>x.clienteId===v.id))return err('usuario','Este cliente ya tiene una cuenta. Puede activarla o desactivarla.');
+    if(DB.accesos.some(x=>x.usuario===usu)||USERS_DEMO.some(x=>x.u===usu))return err('usuario','Ese nombre de usuario ya está en uso.');
+    DB.accesos.push({clienteId:v.id,usuario:usu,clave:v.clave,activo:true});return {}}},
+  cambiarAcceso:{api:v=>['PUT','/clientes/'+v.id+'/acceso',{activo:v.activo}],local:v=>{const x=DB.accesos.find(a=>a.clienteId===v.id);x.activo=v.activo;return {}}}
 };
 function pick(o,keys){const r={};keys.split(' ').forEach(k=>{if(k in o)r[k]=o[k]});return r}
 
@@ -193,11 +206,8 @@ function seed(){
    {id:'p3',clienteId:'c2',nombre:'Remodelación de cocina Solís',tipo:'Remodelación',descripcion:'Remodelación de cocina con nueva distribución, muebles y acabados.',fechaInicio:addDays(T,5),ubicacion:'Santa Ana, San José',area:18,estado:'Por iniciar'},
    {id:'p4',clienteId:'c2',nombre:'Anteproyecto casa de playa',tipo:'Anteproyecto',descripcion:'Anteproyecto de vivienda vacacional. Solo trabajo interno del estudio (sin proveedores ni materiales).',fechaInicio:addDays(T,12),ubicacion:'Nosara, Guanacaste',area:160,estado:'Por iniciar'}];
   const a1=planActs('p1','Diseño de interiores',addDays(T,-20)).map(a=>({...a,estado:a.fecha<T?(a.nombre.includes('comentarios')?'Pendiente':'Completada'):(a.nombre.includes('planos')?'En proceso':'Pendiente')}));
-  // Daniel Rojas (personal interno) participa en el mueble de TV y en la remodelación de cocina
-  const DANIEL=['Coordinación con ebanista','Fabricación','Instalación y entrega','Selección de materiales'];
   const a2=planActs('p2','Mobiliario a medida',addDays(T,-15)).map(a=>({...a,estado:a.fecha<T?'Completada':(a.nombre==='Fabricación'?'En proceso':'Pendiente')}));
   const a3=planActs('p3','Remodelación',addDays(T,5));
-  [...a2,...a3].forEach(a=>{if(DANIEL.includes(a.nombre))a.responsable='Daniel Rojas'});
   d.actividades=[...a1,...a2,...a3];
   d.proveedores=[
    {id:'v1',nombre:'Luz & Forma',categorias:['Iluminación'],contacto:'Pamela Ruiz',telefono:'8811-2233',correo:'ventas@luzyforma.cr',ofrece:'Lámparas colgantes, apliques, cintas LED.',notas:'Responde rápido; buena experiencia previa.'},
@@ -214,6 +224,8 @@ function seed(){
   d.provProy=[{id:'pp1',proyectoId:'p1',proveedorId:'v1',condicion:'Seleccionado'},{id:'pp2',proyectoId:'p1',proveedorId:'v2',condicion:'Considerado'},{id:'pp3',proyectoId:'p1',proveedorId:'v6',condicion:'Seleccionado'},{id:'pp4',proyectoId:'p2',proveedorId:'v3',condicion:'Seleccionado'},{id:'pp5',proyectoId:'p3',proveedorId:'v4',condicion:'Considerado'},{id:'pp6',proyectoId:'p3',proveedorId:'v5',condicion:'Considerado'}];
   d.matProy=[{id:'mp1',proyectoId:'p1',materialId:'m1',cantidad:3,precioUnit:45000,nota:'Comedor'},{id:'mp2',proyectoId:'p1',materialId:'m4',cantidad:1,precioUnit:650000,nota:''},{id:'mp3',proyectoId:'p2',materialId:'m3',cantidad:4,precioUnit:28000,nota:''}];
   d.cotizaciones=[{id:'q1',proyectoId:'p1',codigo:'COT-2026-014',fecha:addDays(T,-28),monto:1800000,estado:'Aceptada',enlace:'https://www.canva.com/',archivo:''}];
+  /* Cuentas de clientes (SC-01). En modo demostración la contraseña se guarda tal cual; en el servidor, cifrada. */
+  d.accesos=[{clienteId:'c1',usuario:'cliente',clave:'cliente2026',activo:true}];
   return d;
 }
 
@@ -223,6 +235,7 @@ const puedeVer=v=>!!USER&&P().vistas.includes(v);
 const can=()=>!!USER&&P().edita==='todo';                       // registrar y modificar todo
 const canAct=pid=>can()||(!!USER&&P().edita==='actividades'&&DB.proyectos.some(p=>p.id===pid)); // actividades de sus proyectos
 const esAdmin=()=>!!USER&&P().admin;                               // funciones de administración
+const esCliente=()=>!!USER&&P().alcance==='propios';               // SC-01: cliente con acceso
 function denegar(){toast('Acción no autorizada para su rol ('+USER.rol+').','err');return false}
 function needEdit(){return can()||denegar()}
 /* Permiso que exige cada botón; aplicarPermisos() quita de la pantalla lo que el rol no puede usar (CU-17) */
@@ -336,7 +349,8 @@ function leerBase64(file){return new Promise((ok,ko)=>{const r=new FileReader();
 /* ================= Helpers de vista ================= */
 const cliName=id=>(byId('clientes',id)||{}).nombre||'—';
 const projActs=pid=>DB.actividades.filter(a=>a.proyectoId===pid).sort(byFecha);
-function prog(pid){const a=projActs(pid);if(!a.length)return null;const d=a.filter(x=>x.estado==='Completada').length;return {d,t:a.length,pct:Math.round(d*100/a.length)}}
+function prog(pid){const p=byId('proyectos',pid)||{};if(p.avance){const {hechas:d,total:t}=p.avance;return t?{d,t,pct:Math.round(d*100/t)}:null}  // vista del cliente: avance calculado con todas las actividades
+  const a=projActs(pid);if(!a.length)return null;const d=a.filter(x=>x.estado==='Completada').length;return {d,t:a.length,pct:Math.round(d*100/a.length)}}
 function progHtml(pid){const p=prog(pid);return p?`<div class="prog"><div style="width:${p.pct}%"></div></div><small class="muted">${p.d}/${p.t} actividades · ${p.pct}%</small>`:'<small class="muted">Sin actividades</small>'}
 function whenB(a){if(a.estado==='Completada'||!a.fecha)return '';const d=diff(a.fecha);
   if(d<0)return badge('Atrasada '+(-d)+' d','err');if(d===0)return badge('Hoy','coral');if(d===1)return badge('Mañana','warn');if(d<=7)return badge('En '+d+' días','warn');return ''}
@@ -358,8 +372,9 @@ function vLogin(){
    <div class="msg"></div>
    <button class="btn" style="width:100%;margin-top:16px;padding:11px;justify-content:center">Ingresar</button>
    <div class="demo"><b style="font-weight:500">Usuarios de demostración</b> <span class="muted">(clic para completar)</span><table>
-   ${USERS_DEMO.map(u=>`<tr data-fill="${u.u}|${u.p}"><td>${esc(u.nombre)}<br><small class="muted">${esc(u.rol)}</small></td><td><code>${u.u}</code></td><td><code>${u.p}</code></td></tr>`).join('')}</table>
-   <small class="muted">Cada rol ve una aplicación distinta: la propietaria administra todo, la arquitecta trabaja sobre todos los proyectos y el personal interno solo ve los proyectos en los que participa.</small></div>
+   ${USERS_DEMO.map(u=>`<tr data-fill="${u.u}|${u.p}"><td>${esc(u.nombre)}<br><small class="muted">${esc(u.rol)}</small></td><td><code>${u.u}</code></td><td><code>${u.p}</code></td></tr>`).join('')}
+   <tr data-fill="cliente|cliente2026"><td>Laura Méndez Quesada<br><small class="muted">Cliente (cuenta de ejemplo)</small></td><td><code>cliente</code></td><td><code>cliente2026</code></td></tr></table>
+   <small class="muted">Cada rol ve una aplicación distinta: la propietaria administra todo, la arquitecta trabaja sobre todos los proyectos y el cliente solo consulta el avance de sus propios proyectos.</small></div>
   </form></div></div>`}
 
 const NAV=[['inicio','Inicio'],['potenciales','Potenciales clientes'],['clientes','Clientes'],['proyectos','Proyectos'],['calendario','Calendario'],['proveedores','Proveedores'],['materiales','Materiales'],['acerca','Acerca del prototipo']];
@@ -367,15 +382,16 @@ const PARENT={cliente:'clientes',proyecto:'proyectos',proveedor:'proveedores',bu
 function shell(view,content){
   const act=PARENT[view]!==undefined?PARENT[view]:view;
   return `<div class="layout"><aside class="side"><div class="sello">${marca()}</div>
-  <nav>${NAV.filter(([k])=>puedeVer(k)).map(([k,l])=>`<a href="#${k}" class="${act===k?'on':''}"><span>${l}</span></a>`).join('')}</nav>
+  <nav>${NAV.filter(([k])=>puedeVer(k)).map(([k,l])=>`<a href="#${k}" class="${act===k?'on':''}"><span>${esCliente()&&k==='proyectos'?'Mis proyectos':l}</span></a>`).join('')}</nav>
   <div class="side-foot"><div class="modo ${MODO}"><i></i><span>${MODO==='api'?'Base de datos SQLite conectada':'Modo demostración (datos en este navegador)'}</span></div>
   <button class="linkbtn" data-act="reset">Restablecer datos de ejemplo</button></div></aside>
-  <div class="main"><header class="top"><form class="search" data-search><input name="q" placeholder="${P().comercial?'Buscar clientes, proyectos, proveedores, materiales…':'Buscar proyectos, proveedores, materiales…'}" value="${esc(ui.q)}" aria-label="Búsqueda general"></form>
+  <div class="main"><header class="top"><form class="search" data-search ${puedeVer('buscar')?'':'style="visibility:hidden"'}><input name="q" placeholder="${P().comercial?'Buscar clientes, proyectos, proveedores, materiales…':'Buscar proyectos, proveedores, materiales…'}" value="${esc(ui.q)}" aria-label="Búsqueda general"></form>
   <div class="user"><span class="avatar">${USER.ini}</span><div><b>${esc(USER.nombre)}</b><small>${esc(USER.rol)}</small></div><button class="btn ghost sm" data-act="logout">Salir</button></div></header>
   <main id="view">${content}</main></div></div>`}
 
 function vInicio(){
   /* Cada rol ve su propio inicio (CU-17: cada usuario accede a lo que corresponde a su rol) */
+  if(esCliente())return vInicioCliente();
   const T=today(),yo=USER.nombre,rol=USER.rolCodigo;
   const abiertos=DB.proyectos.filter(p=>!['Finalizado','Cancelado'].includes(p.estado)).map(p=>p.id);
   const pend=DB.actividades.filter(a=>a.estado!=='Completada'&&abiertos.includes(a.proyectoId));
@@ -410,6 +426,30 @@ function vInicio(){
   <div class="grid2"><section class="card"><h3>Mis actividades</h3>${urg.length?`<div class="alist">${urg.map(a=>actRow(a,true)).join('')}</div>`:emptyBox('No tiene actividades pendientes en los próximos 30 días.')}</section>
   <section class="card"><h3>Mis proyectos</h3>${listaProy(misProy)}</section></div>
   <p class="note"><b>Su vista:</b> como personal interno ve solo los proyectos en los que participa y puede registrar o actualizar sus actividades. La información de clientes, potenciales clientes y cotizaciones no está disponible para su rol.</p>`}
+
+/* ---------- Portal del cliente (SC-01 · RF-19 · CU-19) ---------- */
+function vInicioCliente(){
+  const h=new Date().getHours();const sal=h<12?'Buenos días':h<19?'Buenas tardes':'Buenas noches';
+  const ps=DB.proyectos;const T=today();
+  const prox=DB.actividades.filter(a=>a.estado!=='Completada').sort(byFecha);
+  return ph(`${sal}, <b>${esc(USER.nombre.split(' ')[0])}</b>`,'Aquí puede seguir el avance de sus proyectos con Anémona Design Studio.','')+
+  (ps.length?`<div class="pcards">${ps.map(p=>{const nx=prox.find(a=>a.proyectoId===p.id);
+    return `<a class="pcard" href="#proyecto-${p.id}"><div class="tags">${badge(p.estado,KIND_PROY[p.estado])}${badge(p.tipo,'mute')}</div><b>${esc(p.nombre)}</b><small class="muted">${esc(p.ubicacion||'')} · inicio ${fd(p.fechaInicio)}</small>${progHtml(p.id)}
+    ${nx?`<small>Próximo entregable: <b>${esc(nx.nombre)}</b> · ${fd(nx.fecha)}${nx.fecha<T?' '+badge('En revisión','warn'):''}</small>`:'<small class="muted">Sin entregables pendientes</small>'}</a>`}).join('')}</div>`
+  :emptyBox('Aún no hay proyectos para mostrar.'))+
+  `<p class="note"><b>Su acceso:</b> puede consultar el estado, el avance, los entregables y las cotizaciones de sus proyectos. Para cualquier cambio, comuníquese con el estudio.</p>`}
+function vProyectoCliente(p){
+  const ents=projActs(p.id);const cots=DB.cotizaciones.filter(c=>c.proyectoId===p.id);const T=today();
+  return ph(esc(p.nombre),esc(p.tipo),badge(p.estado,KIND_PROY[p.estado]),`<a href="#proyectos">mis proyectos</a> / detalle`)+
+  `<div class="stack"><section class="card"><h3>Avance del proyecto</h3><div class="dgrid">
+   <div><small>Estado</small><span>${badge(p.estado,KIND_PROY[p.estado])}</span></div><div><small>Fecha de inicio</small><span>${fd(p.fechaInicio)}</span></div><div><small>Avance</small><span>${progHtml(p.id)}</span></div>
+   <div><small>Ubicación</small><span>${esc(p.ubicacion||'—')}</span></div><div><small>Área</small><span>${p.area!==''&&p.area!=null?esc(p.area)+' m²':'—'}</span></div>
+   <div class="full"><small>Descripción</small><span>${esc(p.descripcion)}</span></div></div></section>
+  <section class="card"><h3>Entregables</h3>${ents.length?`<div class="tblwrap"><table class="tbl"><thead><tr><th>Entregable</th><th>Fecha prevista</th><th>Estado</th></tr></thead><tbody>
+   ${ents.map(a=>`<tr><td><b>${esc(a.nombre)}</b></td><td>${fd(a.fecha)}</td><td>${a.estado==='Completada'?badge('Entregado','ok'):a.fecha<T?badge('En revisión','warn'):badge(a.estado==='En proceso'?'En proceso':'Programado',a.estado==='En proceso'?'warn':'info')}</td></tr>`).join('')}</tbody></table></div>`:emptyBox('Este proyecto aún no tiene entregables programados.')}</section>
+  <section class="card"><h3>Cotizaciones</h3>${cots.length?`<div class="tblwrap"><table class="tbl"><thead><tr><th>Código</th><th>Fecha</th><th class="num">Monto</th><th>Estado</th><th>Documento</th></tr></thead><tbody>
+   ${cots.map(c=>`<tr><td><b>${esc(c.codigo)}</b></td><td>${fd(c.fecha)}</td><td class="num">${money(c.monto)}</td><td>${badge(c.estado,KIND_COT[c.estado])}</td>
+    <td>${c.tieneArchivo&&MODO==='api'?`<a href="/api/cotizaciones/${c.id}/archivo" target="_blank" rel="noopener"><small>Abrir documento</small></a> `:''}${c.enlace?`<a href="${esc(c.enlace)}" target="_blank" rel="noopener"><small>Ver cotización</small></a>`:''}</td></tr>`).join('')}</tbody></table></div>`:emptyBox('No hay cotizaciones registradas para este proyecto.')}</section></div>`}
 
 /* ---------- Potenciales clientes RF-01, RF-02, RF-03 ---------- */
 function vPotenciales(){
@@ -484,7 +524,23 @@ function vCliente(id){
   `<div class="stack"><section class="card"><h3>Datos del cliente</h3><div class="dgrid">
    <div><small>Teléfono</small><span>${esc(c.telefono||'—')}</span></div><div><small>Correo</small><span>${esc(c.correo||'—')}</span></div><div><small>Nacionalidad</small><span>${esc(c.nacionalidad||'—')}</span></div>
    <div><small>Cliente desde</small><span>${fd(c.creado)}</span></div><div class="full"><small>Origen</small><span>${lead?`Convertido desde potencial cliente (registrado el ${fd(lead.creado)}, interés: ${esc(lead.servicio)})`:'Registro directo'}</span></div></div></section>
-  <section class="card"><h3>Proyectos del cliente</h3>${ps.length?projTable(ps,false):emptyBox('Este cliente aún no tiene proyectos.')}</section></div>`}
+  <section class="card"><h3>Proyectos del cliente</h3>${ps.length?projTable(ps,false):emptyBox('Este cliente aún no tiene proyectos.')}</section>
+  ${tarjetaAcceso(c)}</div>`}
+/* SC-01 / RF-18: cuenta con la que el cliente consulta el avance de sus proyectos */
+function tarjetaAcceso(c){
+  const a=(DB.accesos||[]).find(x=>x.clienteId===c.id);
+  const estado=!a?`<p style="margin:0 0 12px">${badge('Sin acceso','mute')} Este cliente todavía no tiene cuenta para consultar sus proyectos.</p><button class="btn madera" data-act="darAcceso" data-id="${c.id}">Dar acceso</button>`
+   :a.activo?`<p style="margin:0 0 12px">${badge('Acceso activo','ok')} Usuario: <code>${esc(a.usuario)}</code>. Ve el estado, el avance, los entregables y las cotizaciones de sus proyectos.</p><button class="btn ghost" data-act="cambiarAcceso" data-id="${c.id}">Desactivar acceso</button>`
+   :`<p style="margin:0 0 12px">${badge('Acceso desactivado','err')} Usuario: <code>${esc(a.usuario)}</code>. No puede ingresar.</p><button class="btn ghost" data-act="cambiarAcceso" data-id="${c.id}">Reactivar acceso</button>`;
+  return `<section class="card"><h3>Acceso del cliente</h3>${estado}<p class="note" style="margin-bottom:0">El cliente no ve proveedores, materiales, costos ni actividades internas del estudio.</p></section>`}
+function formAcceso(c){
+  if(!needEdit())return;
+  openForm({title:'Dar acceso a '+c.nombre,intro:'El cliente podrá ingresar para consultar el estado, el avance, los entregables y las cotizaciones de sus proyectos. No podrá modificar nada.',
+   fields:[{k:'usuario',label:'Nombre de usuario',req:true,ph:'laura.mendez',help:'De 3 a 30 letras minúsculas, números, punto o guion.',check:v=>/^[a-z0-9._-]{3,30}$/.test(v.toLowerCase())?'':'Use de 3 a 30 letras minúsculas, números, punto, guion o guion bajo.'},
+     {k:'clave',label:'Contraseña inicial',type:'password',req:true,help:'Al menos 8 caracteres. Entréguela al cliente por un medio privado.',check:v=>v.length<8?'La contraseña debe tener al menos 8 caracteres.':''}],
+   submit:'Crear acceso',
+   onSubmit:async v=>{const r=await op('darAcceso',{...v,id:c.id});return r.errors||r.cancel?r:{msg:'Acceso creado para '+c.nombre+'.'}}});
+}
 function projTable(ps,showCli){return `<div class="tblwrap"><table class="tbl"><thead><tr><th>Proyecto</th>${showCli?'<th>Cliente</th>':''}<th>Tipo</th><th>Inicio</th><th>Estado</th><th>Avance</th></tr></thead><tbody>
  ${ps.map(p=>`<tr class="click" data-goto="#proyecto-${p.id}"><td><b>${esc(p.nombre)}</b><br><small class="muted">${esc(p.ubicacion||'')}</small></td>${showCli?`<td>${esc(cliName(p.clienteId))}</td>`:''}<td>${esc(p.tipo)}</td><td>${fd(p.fechaInicio)}</td><td>${badge(p.estado,KIND_PROY[p.estado])}</td><td style="min-width:150px">${progHtml(p.id)}</td></tr>`).join('')}</tbody></table></div>`}
 
@@ -492,7 +548,7 @@ function projTable(ps,showCli){return `<div class="tblwrap"><table class="tbl"><
 function vProyectos(){
   const f=ui.pf;const q=norm(f.q);
   const rows=DB.proyectos.filter(p=>(!f.tipo||p.tipo===f.tipo)&&(!f.estado||p.estado===f.estado)&&(!q||norm(p.nombre+' '+cliName(p.clienteId)+' '+p.ubicacion).includes(q)));
-  return ph('<b>Proyectos</b>',(P().alcance==='participa'?'Los proyectos en los que usted participa, clasificados por tipo de servicio y estado.':'Todos los proyectos del estudio, clasificados por tipo de servicio y estado.'),`<button class="btn" data-act="nuevoProyecto">+ Nuevo proyecto</button>`)+
+  return ph('<b>Proyectos</b>',(esCliente()?'Sus proyectos con Anémona Design Studio.':P().alcance==='participa'?'Los proyectos en los que usted participa, clasificados por tipo de servicio y estado.':'Todos los proyectos del estudio, clasificados por tipo de servicio y estado.'),`<button class="btn" data-act="nuevoProyecto">+ Nuevo proyecto</button>`)+
   `<div class="filters"><select data-chg="pfTipo" aria-label="Filtrar por tipo"><option value="">Todos los tipos</option>${TIPOS.map(t=>opt(t,f.tipo)).join('')}</select>
    <select data-chg="pfEstado" aria-label="Filtrar por estado"><option value="">Todos los estados</option>${ESTADOS.map(t=>opt(t,f.estado)).join('')}</select>
    <input data-chg="pfQ" placeholder="Nombre, cliente o ubicación…" value="${esc(f.q)}">
@@ -520,6 +576,7 @@ function formProyecto(p,preCliente){
 }
 function vProyecto(id){
   const p=byId('proyectos',id);if(!p)return notFound('proyecto');
+  if(esCliente())return vProyectoCliente(p);
   if(ui.lastProj!==id){ui.tab='resumen';ui.lastProj=id}
   const acts=projActs(id),provs=DB.provProy.filter(x=>x.proyectoId===id),mats=DB.matProy.filter(x=>x.proyectoId===id),cots=DB.cotizaciones.filter(x=>x.proyectoId===id);
   const tabs=[['resumen','Resumen',null],['actividades','Actividades',acts.length],['proveedores','Proveedores',provs.length],['materiales','Materiales y productos',mats.length],['cotizaciones','Cotizaciones',cots.length]].filter(([k])=>k!=='cotizaciones'||P().comercial);
@@ -725,7 +782,7 @@ function vAcerca(){
    <li><b>Plan de acción por tipo de servicio:</b> actividades y plazos sugeridos a partir de la minuta 01 (tema 3); son editables y deben validarse.</li>
    <li><b>Cédula</b> de 9 dígitos; <b>pasaporte</b> de 6 a 20 caracteres alfanuméricos.</li>
    <li><b>Duplicados:</b> se considera la misma persona si coincide el nombre, el teléfono o el correo.</li>
-   <li><b>Roles:</b> la propietaria administra todo; la arquitecta consulta y modifica toda la información, como indicó Gabriela; el personal interno (Daniel Rojas, persona ficticia) solo ve los proyectos en los que participa y actualiza sus actividades.</li></ul></section>
+   <li><b>Roles:</b> la propietaria administra todo; la arquitecta consulta y modifica toda la información, como indicó Gabriela; el cliente con acceso (solicitud de cambio SC-01) solo consulta el avance de sus propios proyectos.</li></ul></section>
   <section class="card"><h3>Fuera del alcance (ERS 2.11)</h3><ul><li>Generación de cotizaciones, notificaciones automáticas, archivo de fotos y renders, historial de cambios, eliminación de clientes.</li></ul></section></div>`}
 const notFound=t=>ph('No encontrado','El '+t+' solicitado no existe.','')+`<a class="btn ghost" href="#inicio">Volver al inicio</a>`;
 
@@ -757,6 +814,10 @@ const ACT={
   editLead(id){const l=byId('leads',id);if(l.convertidoA){location.hash='#cliente-'+l.convertidoA;return}if(!can()){infoBox(l.nombre,`${esc(l.servicio)} · ${badge(l.estado,KIND_LEAD[l.estado])}<br>${esc(l.telefono||'')} ${esc(l.correo||'')}<br><small class="muted">${esc(l.notas||'')}</small>`);return}formLead(l)},
   convertir(id){formConvertir(byId('leads',id))},
   nuevoCliente(){formCliente(null)},
+  darAcceso(id){formAcceso(byId('clientes',id))},
+  cambiarAcceso(id){if(!needEdit())return;const a=DB.accesos.find(x=>x.clienteId===id);const c=byId('clientes',id);
+    if(a.activo)confirmBox('Desactivar acceso',`${esc(c.nombre)} ya no podrá ingresar y se cerrará su sesión si está abierta.`,'Desactivar',()=>simple('cambiarAcceso',{id,activo:false},'Acceso desactivado.'));
+    else simple('cambiarAcceso',{id,activo:true},'Acceso reactivado.')},
   editCliente(id){formCliente(byId('clientes',id))},
   nuevoProyecto(id){formProyecto(null,id)},
   editProyecto(id){formProyecto(byId('proyectos',id))},
@@ -801,7 +862,9 @@ document.addEventListener('submit',async e=>{
     if(MODO==='api'){const r=await http('POST','/sesion',{usuario:f.u.value.trim(),clave:f.p.value});
       if(r.status!==200)return fallo(r.mensaje||'Usuario o contraseña incorrectos. Acceso rechazado.');
       USER=r.usuario;alIngresar();await recargar();
-    }else{const u=USERS_DEMO.find(x=>x.u===f.u.value.trim().toLowerCase()&&x.p===f.p.value);
+    }else{const nombre=f.u.value.trim().toLowerCase();const cta=(DBT.accesos||[]).find(x=>x.usuario===nombre&&x.clave===f.p.value);
+      if(cta&&!cta.activo)return fallo('Su acceso está desactivado. Comuníquese con Anémona Design Studio.');
+      const u=USERS_DEMO.find(x=>x.u===nombre&&x.p===f.p.value)||(cta?usuarioCliente(cta):null);
       if(!u)return fallo('Usuario o contraseña incorrectos. Acceso rechazado.');
       USER=u;alIngresar();try{sessionStorage.setItem(LS+'-u',u.u)}catch(er){}}
     if(!location.hash)location.hash='#inicio';render();toast('Bienvenida, '+USER.nombre.split(' ')[0]+'.');return}
@@ -818,7 +881,7 @@ window.addEventListener('hashchange',()=>{closeModal();render();window.scrollTo(
     if(r.status===200){USER=r.usuario;alIngresar();await recargar()}
   }else{
     load();
-    try{const su=sessionStorage.getItem(LS+'-u');if(su)USER=USERS_DEMO.find(u=>u.u===su)||null}catch(e){}
+    try{const su=sessionStorage.getItem(LS+'-u');if(su){const cta=(DBT.accesos||[]).find(x=>x.usuario===su&&x.activo);USER=USERS_DEMO.find(u=>u.u===su)||(cta?usuarioCliente(cta):null)}}catch(e){}
     if(USER)alIngresar();
   }
   render();

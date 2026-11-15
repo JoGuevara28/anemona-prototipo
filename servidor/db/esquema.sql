@@ -14,12 +14,12 @@ PRAGMA foreign_keys = ON;
 -- Cada rol define qué ve y qué puede modificar (ERS §2.3, §2.9 y Minuta 01, tema 6).
 -- Ver docs/10-roles-y-permisos.md
 CREATE TABLE rol (
-    codigo        TEXT PRIMARY KEY,        -- propietaria | arquitecta | colaborador
+    codigo        TEXT PRIMARY KEY,        -- propietaria | arquitecta | colaborador | cliente
     nombre        TEXT NOT NULL,
     ve_comercial  INTEGER NOT NULL CHECK (ve_comercial IN (0, 1)),   -- potenciales, clientes, cotizaciones
     edita         TEXT NOT NULL CHECK (edita IN ('todo', 'actividades', 'nada')),
     administra    INTEGER NOT NULL CHECK (administra IN (0, 1)),     -- funciones de administración
-    alcance       TEXT NOT NULL CHECK (alcance IN ('todos', 'participa'))  -- proyectos visibles
+    alcance       TEXT NOT NULL CHECK (alcance IN ('todos', 'participa', 'propios'))  -- proyectos visibles
 );
 
 CREATE TABLE usuario (
@@ -29,8 +29,12 @@ CREATE TABLE usuario (
     iniciales     TEXT NOT NULL,
     rol           TEXT NOT NULL REFERENCES rol(codigo),
     clave_hash    TEXT NOT NULL,           -- PBKDF2-SHA256, nunca la contraseña en texto plano
-    clave_sal     TEXT NOT NULL
+    clave_sal     TEXT NOT NULL,
+    cliente_id    TEXT REFERENCES cliente(id),   -- solo para cuentas de clientes (SC-01, RF-18)
+    activo        INTEGER NOT NULL DEFAULT 1 CHECK (activo IN (0, 1)),
+    CHECK ((rol = 'cliente') = (cliente_id IS NOT NULL))  -- toda cuenta de cliente apunta a un cliente, y solo esas
 );
+CREATE UNIQUE INDEX idx_usuario_cliente ON usuario(cliente_id) WHERE cliente_id IS NOT NULL;  -- una cuenta por cliente
 
 CREATE TABLE sesion (
     token       TEXT PRIMARY KEY,
@@ -201,4 +205,4 @@ CREATE TABLE cotizacion (
 );
 
 -- Versión del esquema: el servidor recrea la base si encuentra una versión anterior.
-PRAGMA user_version = 2;
+PRAGMA user_version = 3;

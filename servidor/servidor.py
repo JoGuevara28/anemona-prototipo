@@ -67,6 +67,11 @@ def _(con, c, u, id): return L.editar_potencial(con, id, c)
 @ruta("POST", r"/api/potenciales/(?P<id>\w+)/convertir")
 def _(con, c, u, id): return L.convertir_potencial(con, id, c)
 
+@ruta("POST", r"/api/clientes/(?P<id>\w+)/acceso")
+def _(con, c, u, id): return L.dar_acceso_cliente(con, id, c)
+@ruta("PUT", r"/api/clientes/(?P<id>\w+)/acceso")
+def _(con, c, u, id): return L.cambiar_acceso_cliente(con, id, c)
+
 @ruta("POST", r"/api/clientes")
 def _(con, c, u): return L.crear_cliente(con, c)
 @ruta("PUT", r"/api/clientes/(?P<id>\w+)")
@@ -215,8 +220,8 @@ class Manejador(BaseHTTPRequestHandler):
             c = self._cuerpo()
             try:
                 token, u = L.iniciar_sesion(con, c.get("usuario", ""), c.get("clave", ""))
-            except L.NoAutenticado:
-                return self._json(401, {"mensaje": "Usuario o contraseña incorrectos. Acceso rechazado."})
+            except L.NoAutenticado as e:
+                return self._json(401, {"mensaje": str(e) or "Usuario o contraseña incorrectos. Acceso rechazado."})
             return self._json(200, {"usuario": u}, self._cookie(token))
         if ruta_ == "/api/sesion" and metodo == "DELETE":
             L.cerrar_sesion(con, self._token())
@@ -230,7 +235,7 @@ class Manejador(BaseHTTPRequestHandler):
             return self._json(200, {"usuario": usuario})
         m = re.fullmatch(r"/api/cotizaciones/(\w+)/archivo", ruta_)
         if m and metodo == "GET":
-            if not usuario["permisos"]["comercial"]:
+            if not L.puede_ver_cotizacion(con, usuario, m.group(1)):
                 raise L.Prohibido()
             nombre, tipo, contenido = L.archivo_cotizacion(con, m.group(1))
             self.send_response(200)

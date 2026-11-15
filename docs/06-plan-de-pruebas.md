@@ -62,20 +62,21 @@ El script de aceptación imprime el resultado de cada prueba y actualiza [`prueb
 | PA-24 | CU-15 Alt. | Sin coincidencias se informa |
 | PA-25 | CU-16 | Cotización exige enlace o documento y se consulta desde el proyecto |
 | PA-26 | CU-17 CA1, RNF-03 | Sin autenticación no hay datos; credenciales inválidas rechazadas |
-| PA-27 | CU-17 CA2 | El personal interno que intenta entrar a una sección ajena es bloqueado e informado |
+| PA-27 | CU-17 CA2 | El cliente que intenta entrar a una sección del estudio es bloqueado e informado |
 | PA-28 | RNF-05, RN-02 | Proyecto sin proveedores, materiales ni actividades |
 | PA-29 | RF-16 · solo servidor | El documento adjunto se guarda en la base y se puede abrir |
 | PA-30 | RNF-02, RNF-03 · solo servidor | Lo que registra una usuaria lo ve otra desde otro navegador |
-| PA-31 | RF-17 · solo servidor | El servidor rechaza acciones fuera del rol y no envía datos comerciales al personal interno |
+| PA-31 | RF-17 · solo servidor | El servidor rechaza acciones fuera del rol y no envía al cliente datos internos ni de otros clientes |
 | PA-32 | RF-17 · roles | Cada rol ve un menú, un inicio y opciones de administración distintos |
-| PA-33 | RF-17 · roles | El personal interno solo ve sus proyectos, sin contacto del cliente ni cotizaciones |
-| PA-34 | RF-17 · roles | El personal interno registra actividades en su proyecto, pero no modifica el proyecto ni los catálogos |
+| PA-33 | SC-01 · CU-19 | El cliente solo ve sus proyectos: estado, avance, entregables y cotización, sin costos ni proveedores |
+| PA-34 | SC-01 · CU-18 | La arquitecta da acceso a un cliente, este ve solo lo suyo y, al desactivarlo, ya no puede ingresar |
 
-## Pruebas de API y base de datos (34)
+## Pruebas de API y base de datos (37)
 
 | Grupo | Qué verifican |
 |---|---|
-| Acceso y roles | Sin sesión → 401; contraseña incorrecta; cookie HttpOnly; cierre de sesión; contraseñas cifradas; el personal interno no modifica información comercial ni proyectos (403), solo recibe sus proyectos, solo actualiza actividades de sus proyectos y no descarga cotizaciones; solo la propietaria administra; una base con esquema antiguo se actualiza sola |
+| Acceso y roles | Sin sesión → 401; contraseña incorrecta; cookie HttpOnly; cierre de sesión; contraseñas cifradas; solo la propietaria administra; una base con esquema antiguo se actualiza sola |
+| Acceso de clientes (SC-01) | El cliente solo recibe sus proyectos, entregables y cotizaciones; su avance coincide con el del estudio; no modifica nada (403); no descarga cotizaciones ajenas; dar y desactivar acceso (la sesión abierta se cierra); validaciones (usuario repetido, contraseña corta, una cuenta por cliente); la base exige que toda cuenta de cliente apunte a un cliente |
 | Personas | Medio de contacto obligatorio; duplicados; conversión sin duplicar y exigiendo contrato; identificación única aunque cambie el formato; formato de cédula |
 | Proyectos | Cliente inexistente; tipo fuera del catálogo; plan de acción; proyecto mínimo válido; transiciones (incluye estados finales); área negativa |
 | Relaciones | Proveedor no repetido; cantidad > 0; precio de referencia; cotización con enlace o documento; descarga de documento; formato no permitido |
@@ -89,4 +90,4 @@ El prototipo se considera listo para validar con el cliente cuando se cumplen do
 - **todas** las pruebas automáticas están aprobadas;
 - no hay errores de JavaScript.
 
-Estado actual: **65/65 ejecuciones de aceptación** y **34/34 pruebas de API** aprobadas.
+Estado actual: **65/65 ejecuciones de aceptación** y **37/37 pruebas de API** aprobadas.

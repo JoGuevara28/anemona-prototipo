@@ -49,6 +49,8 @@ Todas las rutas, salvo `/api/salud` y `POST /api/sesion`, requieren una sesión 
 | POST / PUT | `/api/potenciales[/{id}]` | RF-01, RF-02 | Registrar o actualizar un potencial cliente |
 | POST | `/api/potenciales/{id}/convertir` | RF-03 | Convertir en cliente |
 | POST / PUT | `/api/clientes[/{id}]` | RF-04 | Registrar o actualizar un cliente |
+| POST | `/api/clientes/{id}/acceso` | RF-18 (SC-01) | Crear la cuenta del cliente `{usuario, clave}` |
+| PUT | `/api/clientes/{id}/acceso` | RF-18 (SC-01) | Activar o desactivar la cuenta `{activo}`; al desactivar se cierran sus sesiones |
 | POST / PUT | `/api/proyectos[/{id}]` | RF-05 a RF-07 | Registrar o actualizar un proyecto (`plan: true` carga el plan de acción) |
 | PUT | `/api/proyectos/{id}/estado` | RF-08 | Cambiar el estado (valida la transición) |
 | POST | `/api/proyectos/{id}/plan` | RF-13 | Cargar el plan de acción del tipo de servicio |
@@ -60,7 +62,7 @@ Todas las rutas, salvo `/api/salud` y `POST /api/sesion`, requieren una sesión 
 | POST / PUT | `/api/proveedores[/{id}]` | RF-09 | Registrar o actualizar un proveedor |
 | POST / PUT | `/api/materiales[/{id}]` | RF-10 | Registrar o actualizar un material |
 | POST / PUT | `/api/cotizaciones[/{id}]` | RF-16 | Registrar la referencia, con documento adjunto opcional en base64 |
-| GET | `/api/cotizaciones/{id}/archivo` | RF-16 | Descargar el documento adjunto |
+| GET | `/api/cotizaciones/{id}/archivo` | RF-16, RF-19 | Descargar el documento adjunto (el cliente, solo los de sus proyectos) |
 | POST | `/api/reiniciar` | — | Vuelve a cargar los datos de ejemplo (para presentaciones) |
 
 ### Respuestas
@@ -78,7 +80,7 @@ Todas las rutas, salvo `/api/salud` y `POST /api/sesion`, requieren una sesión 
 - **Contraseñas cifradas** con PBKDF2-SHA256 (120 000 iteraciones), cada una con su propia sal. La base nunca guarda la contraseña.
 - **Sesiones** con un token aleatorio de 256 bits, guardado en la tabla `sesion`, que vence a las 8 horas.
 - **Cookie de sesión** `HttpOnly` y `SameSite=Strict`: JavaScript no puede leerla y no se envía desde otros sitios.
-- **Roles y permisos en el servidor:** tres roles definidos en la tabla `rol`. Cada ruta de la API declara su permiso y el servidor responde 403 si el rol no lo tiene. Además, `/api/datos` filtra lo que cada rol recibe; por ejemplo, el personal interno no recibe datos de contacto ni cotizaciones. Detalle en [`10-roles-y-permisos.md`](10-roles-y-permisos.md).
+- **Roles y permisos en el servidor:** roles definidos en la tabla `rol`. Cada ruta de la API declara su permiso y el servidor responde 403 si el rol no lo tiene. Además, `/api/datos` filtra lo que cada rol recibe; por ejemplo, el cliente solo recibe sus proyectos, entregables y cotizaciones (SC-01). Detalle en [`10-roles-y-permisos.md`](10-roles-y-permisos.md).
 - **Archivos estáticos:** el servidor solo entrega archivos dentro de `prototipo/`; no se puede leer el código ni la base desde el navegador.
 - **Documentos adjuntos:** máximo 10 MB y solo PDF, PNG, JPG o DOCX.
 - **Consultas SQL parametrizadas** en todas las operaciones, para evitar inyección SQL.

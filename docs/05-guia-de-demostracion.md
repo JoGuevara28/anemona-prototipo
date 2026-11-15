@@ -61,9 +61,10 @@ Luego abrir **Anteproyecto casa de playa**: no tiene proveedores ni materiales y
 
 ### 9. Roles y base de datos — RF-17 y RNF-02 (2,5 min)
 1. Salir y entrar como `mariajose`. El inicio cambia: muestra primero **sus** actividades (planos, renders). También ve el cliente y el proyecto creados por Gabriela, porque los datos están en la base y no en el navegador. Ya no aparece «Restablecer datos», que es exclusivo de la propietaria.
-2. Salir y entrar como `colaborador` (Daniel Rojas, personal interno). El menú ya no tiene Potenciales clientes, Clientes ni Cotizador, y en Proyectos solo aparecen los dos proyectos donde participa.
-3. Abrir *Mueble de TV a medida*: puede marcar su actividad como completada, pero no puede cambiar el estado del proyecto. Del cliente solo ve el nombre.
-4. Escribir `#clientes` al final de la dirección. Aparece «Acceso no autorizado» (CU-17, flujo alterno 2). El servidor también rechaza la acción si alguien intenta saltarse la interfaz.
+2. Salir y entrar como `cliente` (Laura Méndez, clienta). Es otra aplicación: solo tiene *Inicio* y *Mis proyectos*, con sus dos proyectos, el avance y el próximo entregable.
+3. Abrir *Apartamento Escazú*: ve estado, avance, entregables y su cotización, pero no proveedores, materiales, costos ni actividades internas.
+4. Escribir `#clientes` al final de la dirección. Aparece «Acceso no autorizado» (CU-17, flujo alterno 2).
+5. Salir, entrar como `mariajose`, abrir el cliente **Andrew Solís** y pulsar **Dar acceso** (usuario `andrew`, contraseña `andrew2026`). Entrar como `andrew`: ve solo sus dos proyectos. Volver como staff y **desactivar** el acceso: Andrew ya no puede ingresar (SC-01, CU-18).
 3. (Opcional) Abrir `servidor/db/anemona.db` con DB Browser for SQLite y mostrar las tablas.
 
 ### 10. Cierre (1 min)

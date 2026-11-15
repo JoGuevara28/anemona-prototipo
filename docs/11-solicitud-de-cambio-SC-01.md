@@ -9,7 +9,7 @@ Una **solicitud de cambio** documenta una modificación al alcance de un ERS que
 | Solicitado por | Equipo del proyecto (Jorge Guevara, José Gabriel Pérez) |
 | ERS afectado | ERS v1.0 → propuesta v1.1 |
 | Prioridad (MoSCoW) | **Should** (*debería*): aporta valor al cliente final, pero el sistema cumple su objetivo principal sin esta función |
-| Estado | 🟡 **Propuesta**: pendiente de aprobación del equipo y de validación con Anémona |
+| Estado | 🟢 **Aprobada por el equipo e implementada en el prototipo** (15-11-2026) · 🟡 pendiente de validación con Anémona |
 
 ---
 
@@ -143,10 +143,18 @@ Se agrega la columna **Cliente** a [`10-roles-y-permisos.md`](10-roles-y-permiso
 3. ¿El cliente debe ver la fecha de **todas** las actividades o solo de los entregables?
 4. ¿María José también puede dar acceso a clientes, o solo Gabriela?
 
-## 9. Aprobación
+## 9. Decisiones del equipo (15-11-2026)
+
+| Pregunta | Decisión |
+|---|---|
+| ¿Qué ve el cliente? | Estado, avance, entregables y sus cotizaciones. No ve actividades internas, costos ni proveedores. |
+| ¿Quién da acceso? | Gabriela y María José, coherente con la minuta: María José modifica todo sin inconveniente. |
+| ¿Cuenta de ejemplo de personal interno? | Se quita. El rol sigue descrito en el ERS, pero Anémona no tiene hoy personal interno además de María José. |
+
+## 10. Aprobación
 
 | Rol | Nombre | Decisión | Fecha |
 |---|---|---|---|
-| Equipo | Jorge Guevara Chavarría | | |
+| Equipo | Jorge Guevara Chavarría | Aprobada | 15-11-2026 |
 | Equipo | José Gabriel Pérez Tullocks | | |
 | Cliente del proyecto | Gabriela Núñez (Anémona) | *Pendiente: por ahora el prototipo lo usa solo el equipo* | |
