@@ -26,7 +26,7 @@ Cada regla se aplica en tres capas: **interfaz** (`prototipo/js/app.js`), **serv
 | RF-14 | Actualizar actividades y calendario | CU-14 | Calendario mensual · `vCalendario`, `formAct` | PA-22 |
 | RF-15 | Consultar información relacionada | CU-15 | Barra de búsqueda y fichas con relaciones · `vBuscar` | PA-23, PA-24 |
 | RF-16 | Registrar referencia a cotización | CU-16 | Ficha del proyecto → Cotizaciones · `formCot` · `logica.crear_cotizacion` (documento guardado en la base) | PA-25, PA-29 · `test_cotizacion_*` |
-| RF-17 | Controlar acceso | CU-17 | Pantalla de ingreso · `logica.iniciar_sesion` (PBKDF2) · permisos en `servidor.py` | PA-26, PA-27, PA-31 · `test_sin_sesion_*`, `test_rol_consulta_*`, `test_contrasenas_*` |
+| RF-17 | Controlar acceso | CU-17 | Pantalla de ingreso · tres roles con vistas distintas (`docs/10-roles-y-permisos.md`) · tabla `rol` · `autorizado`, `filtrar_por_rol` en el servidor · `aplicarPermisos` en la interfaz | PA-26, PA-27, PA-31 a PA-34 · `test_personal_interno_*`, `test_solo_la_propietaria_administra`, `test_contrasenas_*` |
 
 ## Requisitos no funcionales
 
@@ -34,7 +34,7 @@ Cada regla se aplica en tres capas: **interfaz** (`prototipo/js/app.js`), **serv
 |---|---|---|---|
 | RNF-01 | Usabilidad | Campos obligatorios marcados con «*», ayudas bajo cada campo, mensajes de confirmación y lenguaje del estudio. **Requiere una revisión con una persona del estudio** (ver guía de demostración §6). | Revisión manual con Gabriela o María José |
 | RNF-02 | Integridad | El cliente es obligatorio y se verifica que exista en la interfaz, en el servidor y en la base (llave foránea). Si no hay clientes, se ofrece registrarlo primero. | PA-11, PA-30 · `test_bd_*` |
-| RNF-03 | Privacidad | Todo requiere ingreso; contraseñas cifradas; cookie HttpOnly; el rol «consulta» no puede modificar ni siquiera llamando a la API. | PA-26, PA-27, PA-31 · `test_cookie_*`, `test_contrasenas_*` |
+| RNF-03 | Privacidad | Todo requiere ingreso; contraseñas cifradas; cookie HttpOnly; el personal interno no recibe datos de contacto, potenciales clientes ni cotizaciones, ni siquiera llamando a la API. | PA-26, PA-27, PA-31, PA-33 · `test_cookie_*`, `test_contrasenas_*`, `test_personal_interno_solo_recibe_sus_proyectos` |
 | RNF-04 | Recuperación | Ante un error, el formulario conserva los valores, marca el campo y muestra un resumen. | PA-02, PA-21 |
 | RNF-05 | Adaptabilidad | Proveedores, materiales y actividades son opcionales. «Anteproyecto casa de playa» es el ejemplo. | PA-19, PA-28 |
 

@@ -35,7 +35,7 @@ CATEGORIAS = ["Iluminación", "Mobiliario", "Ebanistería", "Construcción", "Ac
 UNIDADES = ["unidad", "m²", "metro lineal", "lámina", "galón", "juego", "servicio"]
 CONDICIONES = ["Considerado", "Seleccionado"]
 EST_COT = ["Enviada", "Aceptada", "Rechazada"]
-RESPONSABLES = ["Gabriela Núñez", "María José", "Colaborador externo"]
+RESPONSABLES = ["Gabriela Núñez", "María José", "Daniel Rojas", "Colaborador externo"]
 TIPOS_ID = ["Cédula", "Pasaporte"]
 PLAN = {
     "Anteproyecto": [("Reunión inicial con el cliente", 0), ("Levantamiento del sitio", 5), ("Propuesta conceptual", 14, 1), ("Revisión con el cliente", 18), ("Ajustes y entrega del anteproyecto", 28, 1)],
@@ -44,11 +44,19 @@ PLAN = {
     "Remodelación": [("Reunión inicial con el cliente", 0), ("Levantamiento del sitio", 5), ("Diseño y planos", 20, 1, "María José"), ("Selección de materiales", 25), ("Cotización con contratistas", 30), ("Inicio de obra", 40), ("Seguimiento de obra", 60), ("Entrega de la remodelación", 75, 1)],
     "Gestión de construcción": [("Revisión de planos", 0), ("Contratación del equipo de construcción", 10), ("Inicio de obra", 20), ("Inspección de avance", 45), ("Entrega de obra", 80, 1)],
 }
-USUARIOS = [
-    ("gabriela", "anemona2026", "Gabriela Núñez", "GN", "Propietaria", 1),
-    ("mariajose", "anemona2026", "María José", "MJ", "Arquitecta", 1),
-    ("consulta", "consulta", "Usuario de consulta", "UC", "Solo consulta (demo)", 0),
+# Roles (RF-17, CU-17). Ver docs/10-roles-y-permisos.md
+#   (código, nombre, ve información comercial, qué edita, administra, alcance de proyectos)
+ROLES = [
+    ("propietaria", "Propietaria", 1, "todo", 1, "todos"),
+    ("arquitecta", "Arquitecta", 1, "todo", 0, "todos"),
+    ("colaborador", "Personal interno", 0, "actividades", 0, "participa"),
 ]
+USUARIOS = [  # (usuario, contraseña de demostración, nombre, iniciales, rol)
+    ("gabriela", "anemona2026", "Gabriela Núñez", "GN", "propietaria"),
+    ("mariajose", "anemona2026", "María José", "MJ", "arquitecta"),
+    ("colaborador", "colaborador2026", "Daniel Rojas", "DR", "colaborador"),
+]
+VERSION_ESQUEMA = 2
 DURACION_SESION = dt.timedelta(hours=8)
 MAX_ARCHIVO = 10 * 1024 * 1024  # 10 MB
 EXT_PERMITIDAS = (".pdf", ".png", ".jpg", ".jpeg", ".docx")
@@ -121,10 +129,21 @@ def conectar(ruta) -> sqlite3.Connection:
 
 
 def crear_bd(ruta, reiniciar: bool = False) -> None:
-    """Crea la base de datos con el esquema y los datos de ejemplo si no existe."""
+    """Crea la base de datos con el esquema y los datos de ejemplo si no existe.
+
+    Si encuentra una base de una versión anterior del esquema, la respalda como
+    .respaldo y crea una nueva (es un prototipo: los datos de ejemplo se regeneran)."""
     ruta = Path(ruta)
     if reiniciar and ruta.exists():
         ruta.unlink()
+    if ruta.exists():
+        con = sqlite3.connect(str(ruta))
+        version = con.execute("PRAGMA user_version").fetchone()[0]
+        con.close()
+        if version < VERSION_ESQUEMA:
+            respaldo = ruta.with_suffix(".db.respaldo")
+            ruta.replace(respaldo)
+            print(f"  Aviso: la base tenía un esquema anterior; se respaldó en {respaldo.name} y se creó una nueva.")
     nueva = not ruta.exists()
     con = conectar(ruta)
     try:
@@ -163,10 +182,12 @@ def sembrar(con: sqlite3.Connection) -> None:
             resp = paso[3] if len(paso) > 3 else "Gabriela Núñez"
             con.execute("INSERT INTO plan_actividad (tipo_servicio, orden, nombre, dias_desde_inicio, entregable, responsable) VALUES (?,?,?,?,?,?)",
                         (tipo, i, nombre, dias, ent, resp))
-    for usuario, clave, nombre, ini, rol, edita in USUARIOS:
+    for r in ROLES:
+        con.execute("INSERT INTO rol VALUES (?,?,?,?,?,?)", r)
+    for usuario, clave, nombre, ini, rol in USUARIOS:
         sal = secrets.token_hex(16)
-        con.execute("INSERT INTO usuario VALUES (?,?,?,?,?,?,?,?)",
-                    (nuevo_id("u"), usuario, nombre, ini, rol, edita, hash_clave(clave, sal), sal))
+        con.execute("INSERT INTO usuario VALUES (?,?,?,?,?,?,?)",
+                    (nuevo_id("u"), usuario, nombre, ini, rol, hash_clave(clave, sal), sal))
     sembrar_negocio(con)
 
 
@@ -205,10 +226,15 @@ def sembrar_negocio(con: sqlite3.Connection) -> None:
         elif "planos" in a["nombre"]:
             a["estado"] = "En proceso"
         _insertar_actividad(con, a)
+    # Daniel Rojas (personal interno) participa en el mueble de TV y en la remodelación de cocina
     for a in _plan(con, "p2", "Mobiliario a medida", _d(-15)):
         a["estado"] = "Completada" if a["fecha"] < T else ("En proceso" if a["nombre"] == "Fabricación" else "Pendiente")
+        if a["nombre"] in ("Coordinación con ebanista", "Fabricación", "Instalación y entrega"):
+            a["responsable"] = "Daniel Rojas"
         _insertar_actividad(con, a)
     for a in _plan(con, "p3", "Remodelación", _d(5)):
+        if a["nombre"] == "Selección de materiales":
+            a["responsable"] = "Daniel Rojas"
         _insertar_actividad(con, a)
     proveedores = [
         ("v1", "Luz & Forma", ["Iluminación"], "Pamela Ruiz", "8811-2233", "ventas@luzyforma.cr", "Lámparas colgantes, apliques, cintas LED.", "Responde rápido; buena experiencia previa."),
@@ -279,8 +305,39 @@ def catalogos(con) -> dict:
     }
 
 
-def datos(con) -> dict:
-    """Todos los registros, con las claves que usa la interfaz."""
+def proyectos_donde_participa(con, usuario: dict) -> set:
+    """Proyectos en los que la persona tiene al menos una actividad asignada (ERS §2.9)."""
+    return {f[0] for f in con.execute("SELECT DISTINCT proyecto_id FROM actividad WHERE responsable=?", (usuario["nombre"],))}
+
+
+def filtrar_por_rol(d: dict, usuario: dict, participa: set) -> dict:
+    """Deja solo lo que el rol puede ver. Propietaria y arquitecta ven todo."""
+    p = usuario["permisos"]
+    if p["alcance"] == "todos" and p["comercial"]:
+        return d
+    if p["alcance"] == "participa":
+        en = lambda x: x["proyectoId"] in participa  # noqa: E731
+        d["proyectos"] = [x for x in d["proyectos"] if x["id"] in participa]
+        d["actividades"] = [x for x in d["actividades"] if en(x)]
+        d["provProy"] = [x for x in d["provProy"] if en(x)]
+        d["matProy"] = [x for x in d["matProy"] if en(x)]
+        d["cotizaciones"] = [x for x in d["cotizaciones"] if en(x)]
+    if not p["comercial"]:
+        visibles = {x["clienteId"] for x in d["proyectos"]}
+        # del cliente solo se conoce el nombre: sin identificación ni datos de contacto (RNF-03)
+        d["clientes"] = [{"id": c["id"], "nombre": c["nombre"]} for c in d["clientes"] if c["id"] in visibles]
+        d["leads"] = []
+        d["cotizaciones"] = []
+    return d
+
+
+def datos(con, usuario: dict | None = None) -> dict:
+    """Los registros que el usuario puede ver, con las claves que usa la interfaz."""
+    d = _todos_los_datos(con)
+    return filtrar_por_rol(d, usuario, proyectos_donde_participa(con, usuario)) if usuario else d
+
+
+def _todos_los_datos(con) -> dict:
     q = lambda sql, *a: con.execute(sql, a).fetchall()  # noqa: E731
     cats: dict[str, list] = {}
     for f in q("SELECT pc.proveedor_id, pc.categoria FROM proveedor_categoria pc JOIN categoria c ON c.nombre=pc.categoria ORDER BY c.orden"):
@@ -325,8 +382,11 @@ def archivo_cotizacion(con, cid: str):
 
 
 # --------------------------------------------------------------------------- acceso (RF-17)
+_SQL_USUARIO = "SELECT u.*, r.nombre AS rol_nombre, r.ve_comercial, r.edita, r.administra, r.alcance FROM usuario u JOIN rol r ON r.codigo=u.rol"
+
+
 def iniciar_sesion(con, usuario: str, clave: str) -> tuple[str, dict]:
-    f = con.execute("SELECT * FROM usuario WHERE usuario=?", (txt(usuario).lower(),)).fetchone()
+    f = con.execute(_SQL_USUARIO + " WHERE u.usuario=?", (txt(usuario).lower(),)).fetchone()
     if not f or not secrets.compare_digest(f["clave_hash"], hash_clave(clave or "", f["clave_sal"])):
         raise NoAutenticado()
     token = secrets.token_urlsafe(32)
@@ -336,14 +396,25 @@ def iniciar_sesion(con, usuario: str, clave: str) -> tuple[str, dict]:
     return token, usuario_publico(f)
 
 
+VISTAS_BASE = ["inicio", "proyectos", "calendario", "proveedores", "materiales", "buscar", "acerca"]
+VISTAS_COMERCIALES = ["potenciales", "clientes", "cotizador"]
+
+
+def permisos_de(ve_comercial, edita, administra, alcance) -> dict:
+    return {"vistas": VISTAS_BASE + (VISTAS_COMERCIALES if ve_comercial else []), "comercial": bool(ve_comercial),
+            "edita": edita, "admin": bool(administra), "alcance": alcance}
+
+
 def usuario_publico(f) -> dict:
-    return {"u": f["usuario"], "nombre": f["nombre"], "ini": f["iniciales"], "rol": f["rol"], "edit": bool(f["puede_editar"])}
+    p = permisos_de(f["ve_comercial"], f["edita"], f["administra"], f["alcance"])
+    return {"u": f["usuario"], "nombre": f["nombre"], "ini": f["iniciales"], "rolCodigo": f["rol"], "rol": f["rol_nombre"],
+            "edit": p["edita"] == "todo", "permisos": p}
 
 
 def usuario_de_token(con, token: str | None):
     if not token:
         return None
-    f = con.execute("SELECT u.* FROM sesion s JOIN usuario u ON u.id=s.usuario_id WHERE s.token=? AND s.expira > ?", (token, ahora_iso())).fetchone()
+    f = con.execute(_SQL_USUARIO + " JOIN sesion s ON u.id=s.usuario_id WHERE s.token=? AND s.expira > ?", (token, ahora_iso())).fetchone()
     return usuario_publico(f) if f else None
 
 
@@ -622,8 +693,15 @@ def _validar_actividad(v):
     val.fin()
 
 
-def crear_actividad(con, v):
+def verificar_alcance(con, usuario: dict | None, proyecto_id: str) -> None:
+    """El personal interno solo modifica proyectos en los que participa (ERS §2.9)."""
+    if usuario and usuario["permisos"]["alcance"] == "participa" and proyecto_id not in proyectos_donde_participa(con, usuario):
+        raise Prohibido()
+
+
+def crear_actividad(con, v, usuario: dict | None = None):
     _existe(con, "proyecto", txt(v.get("proyectoId")))
+    verificar_alcance(con, usuario, v["proyectoId"])
     _validar_actividad(v)
     a = {"id": nuevo_id("a"), "proyectoId": v["proyectoId"], "nombre": txt(v["nombre"]), "responsable": v["responsable"],
          "fecha": v["fecha"], "estado": v["estado"], "entregable": bool(v.get("entregable"))}
@@ -631,8 +709,9 @@ def crear_actividad(con, v):
     return {"id": a["id"]}
 
 
-def editar_actividad(con, aid, v):
-    _existe(con, "actividad", aid)
+def editar_actividad(con, aid, v, usuario: dict | None = None):
+    act = _existe(con, "actividad", aid)
+    verificar_alcance(con, usuario, act["proyecto_id"])
     _validar_actividad(v)
     con.execute("UPDATE actividad SET nombre=?,responsable=?,fecha=?,estado=?,entregable=? WHERE id=?",
                 (txt(v["nombre"]), v["responsable"], v["fecha"], v["estado"], 1 if v.get("entregable") else 0, aid))

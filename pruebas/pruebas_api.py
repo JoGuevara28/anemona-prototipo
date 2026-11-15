@@ -87,11 +87,55 @@ class PruebasAPI(unittest.TestCase):
         self.assertIn("HttpOnly", h["Set-Cookie"])
         self.assertIn("SameSite=Strict", h["Set-Cookie"])
 
-    def test_rol_consulta_no_puede_modificar(self):
+    def colaborador(self):
         c = Cliente(self.base)
-        c.entrar("consulta", "consulta")
+        self.assertEqual(c.entrar("colaborador", "colaborador2026")[0], 200)
+        return c
+
+    def test_personal_interno_no_modifica_informacion_comercial(self):
+        c = self.colaborador()
         self.assertEqual(c.json("GET", "/api/datos")[0], 200)
         self.assertEqual(c.json("POST", "/api/potenciales", {"nombre": "X", "telefono": "88887777", "servicio": "Anteproyecto", "estado": "Nuevo"})[0], 403)
+        self.assertEqual(c.json("PUT", "/api/proyectos/p2/estado", {"estado": "Finalizado"})[0], 403)
+        self.assertEqual(c.json("POST", "/api/proveedores", {"nombre": "X", "categorias": ["Mobiliario"], "telefono": "88887777", "ofrece": "x"})[0], 403)
+
+    def test_personal_interno_solo_recibe_sus_proyectos(self):
+        d = self.colaborador().json("GET", "/api/datos")[1]["datos"]
+        self.assertEqual(sorted(p["id"] for p in d["proyectos"]), ["p2", "p3"])
+        self.assertTrue(all(a["proyectoId"] in ("p2", "p3") for a in d["actividades"]))
+        self.assertEqual((d["leads"], d["cotizaciones"]), ([], []))
+        self.assertEqual(set(d["clientes"][0]), {"id", "nombre"})  # sin identificación ni contacto
+
+    def test_personal_interno_actualiza_actividades_solo_de_sus_proyectos(self):
+        c = self.colaborador()
+        propia = next(a for a in c.json("GET", "/api/datos")[1]["datos"]["actividades"] if a["proyectoId"] == "p2")
+        self.assertEqual(c.json("PUT", f"/api/actividades/{propia['id']}", {**propia, "estado": "Completada"})[0], 200)
+        ajena = next(a for a in self.c.json("GET", "/api/datos")[1]["datos"]["actividades"] if a["proyectoId"] == "p1")
+        self.assertEqual(c.json("PUT", f"/api/actividades/{ajena['id']}", {**ajena, "estado": "Completada"})[0], 403)
+        self.assertEqual(c.json("POST", "/api/actividades", {"proyectoId": "p1", "nombre": "x", "responsable": "Daniel Rojas", "fecha": "2026-12-01", "estado": "Pendiente"})[0], 403)
+
+    def test_personal_interno_no_descarga_documentos_de_cotizacion(self):
+        s, _, _ = self.colaborador().pedir("GET", "/api/cotizaciones/q1/archivo")
+        self.assertEqual(s, 403)
+
+    def test_solo_la_propietaria_administra(self):
+        c = Cliente(self.base)
+        c.entrar("mariajose", "anemona2026")
+        self.assertEqual(c.json("POST", "/api/reiniciar", {})[0], 403)
+        self.assertEqual(c.json("POST", "/api/clientes", {"nombre": "Nueva", "tipoId": "Cédula", "numId": "203330444", "telefono": "88887777"})[0], 201)
+        self.assertEqual(self.c.json("POST", "/api/reiniciar", {})[0], 201)
+
+    def test_base_antigua_se_actualiza(self):
+        vieja = Path(tempfile.mkdtemp()) / "vieja.db"
+        con = sqlite3.connect(vieja)
+        con.execute("CREATE TABLE x (a)")
+        con.commit()
+        con.close()
+        L.crear_bd(vieja)
+        con = L.conectar(vieja)
+        self.assertEqual(con.execute("SELECT count(*) FROM rol").fetchone()[0], 3)
+        con.close()
+        self.assertTrue(vieja.with_suffix(".db.respaldo").exists())
 
     def test_cerrar_sesion_invalida_el_token(self):
         self.c.json("DELETE", "/api/sesion")

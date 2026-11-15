@@ -34,4 +34,5 @@
 | **Servidor / cliente** | El servidor guarda los datos y aplica las reglas; el cliente (el navegador) muestra la interfaz. |
 | **Sesión / cookie** | Al ingresar, el servidor entrega un identificador secreto (token) que el navegador guarda en una cookie y envía en cada petición. |
 | **Hash de contraseña (PBKDF2)** | Transformación irreversible de la contraseña. La base guarda el hash, nunca la contraseña real. |
+| **Rol / RBAC** | Rol: conjunto de permisos que se asigna a un usuario (propietaria, arquitecta, personal interno). RBAC (*Role-Based Access Control*): controlar el acceso según el rol y no persona por persona. |
 | **Códigos HTTP** | 200/201 correcto · 400 datos inválidos · 401 sin sesión · 403 sin permiso · 404 no existe. |

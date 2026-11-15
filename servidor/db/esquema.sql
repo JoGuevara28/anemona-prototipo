@@ -10,14 +10,24 @@
 -- =====================================================================
 PRAGMA foreign_keys = ON;
 
--- ---------------------------------------------------------------- acceso (RF-17)
+-- ---------------------------------------------------------------- acceso (RF-17, CU-17)
+-- Cada rol define qué ve y qué puede modificar (ERS §2.3, §2.9 y Minuta 01, tema 6).
+-- Ver docs/10-roles-y-permisos.md
+CREATE TABLE rol (
+    codigo        TEXT PRIMARY KEY,        -- propietaria | arquitecta | colaborador
+    nombre        TEXT NOT NULL,
+    ve_comercial  INTEGER NOT NULL CHECK (ve_comercial IN (0, 1)),   -- potenciales, clientes, cotizaciones
+    edita         TEXT NOT NULL CHECK (edita IN ('todo', 'actividades', 'nada')),
+    administra    INTEGER NOT NULL CHECK (administra IN (0, 1)),     -- funciones de administración
+    alcance       TEXT NOT NULL CHECK (alcance IN ('todos', 'participa'))  -- proyectos visibles
+);
+
 CREATE TABLE usuario (
     id            TEXT PRIMARY KEY,
     usuario       TEXT NOT NULL UNIQUE,
-    nombre        TEXT NOT NULL,
+    nombre        TEXT NOT NULL,           -- coincide con el responsable de las actividades
     iniciales     TEXT NOT NULL,
-    rol           TEXT NOT NULL,
-    puede_editar  INTEGER NOT NULL CHECK (puede_editar IN (0, 1)),
+    rol           TEXT NOT NULL REFERENCES rol(codigo),
     clave_hash    TEXT NOT NULL,           -- PBKDF2-SHA256, nunca la contraseña en texto plano
     clave_sal     TEXT NOT NULL
 );
@@ -189,3 +199,6 @@ CREATE TABLE cotizacion (
     archivo_datos   BLOB,
     CHECK (enlace <> '' OR archivo_nombre <> '')
 );
+
+-- Versión del esquema: el servidor recrea la base si encuentra una versión anterior.
+PRAGMA user_version = 2;

@@ -59,16 +59,18 @@ Luego abrir **Anteproyecto casa de playa**: no tiene proveedores ni materiales y
 1. **Proveedores → Iluminación**: las alternativas disponibles. Abrir una ficha: proyectos en los que participa y «otras alternativas en la misma categoría».
 2. En la barra superior buscar `escazú`. Aparecen los dos proyectos de esa ubicación. Luego buscar `iluminación` para ver proveedores y materiales a la vez.
 
-### 9. Permisos y base de datos — RF-17 y RNF-02 (1,5 min)
-1. Salir y entrar como `mariajose`. Mostrar que ve el cliente y el proyecto creados por Gabriela: los datos están en la base, no en el navegador.
-2. Salir, entrar como `consulta` e intentar «Registrar cliente». El sistema bloquea la acción e informa que el rol no está autorizado. El servidor también lo rechaza si alguien intenta saltarse la interfaz.
+### 9. Roles y base de datos — RF-17 y RNF-02 (2,5 min)
+1. Salir y entrar como `mariajose`. El inicio cambia: muestra primero **sus** actividades (planos, renders). También ve el cliente y el proyecto creados por Gabriela, porque los datos están en la base y no en el navegador. Ya no aparece «Restablecer datos», que es exclusivo de la propietaria.
+2. Salir y entrar como `colaborador` (Daniel Rojas, personal interno). El menú ya no tiene Potenciales clientes, Clientes ni Cotizador, y en Proyectos solo aparecen los dos proyectos donde participa.
+3. Abrir *Mueble de TV a medida*: puede marcar su actividad como completada, pero no puede cambiar el estado del proyecto. Del cliente solo ve el nombre.
+4. Escribir `#clientes` al final de la dirección. Aparece «Acceso no autorizado» (CU-17, flujo alterno 2). El servidor también rechaza la acción si alguien intenta saltarse la interfaz.
 3. (Opcional) Abrir `servidor/db/anemona.db` con DB Browser for SQLite y mostrar las tablas.
 
 ### 10. Cierre (1 min)
 Mostrar **Acerca del prototipo** (tecnología y supuestos) y la matriz de trazabilidad en `docs/02-matriz-de-trazabilidad.md` y mencionar las pruebas automáticas:
 
-- **59 ejecuciones de pruebas de aceptación** (31 pruebas en dos modos);
-- **29 pruebas de API y base de datos**.
+- **65 ejecuciones de pruebas de aceptación** (34 pruebas en dos modos);
+- **34 pruebas de API y base de datos**.
 
 Todas aprobadas (`pruebas/resultados.md`).
 

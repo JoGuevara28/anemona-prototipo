@@ -24,8 +24,9 @@ La interfaz sigue la identidad visual del estudio: crema, negro, madera y tonos 
 | Requisitos funcionales cubiertos | **17 de 17** (RF-01 a RF-17) |
 | Requisitos no funcionales verificados | **5 de 5** (RNF-01 a RNF-05) |
 | Reglas de negocio aplicadas | RN-01, RN-02, RN-03 e IE-01, **en la interfaz, en el servidor y en la base de datos** |
-| Pruebas de aceptación (interfaz) | **59 de 59 aprobadas** (31 pruebas × 2 modos) → [`pruebas/resultados.md`](pruebas/resultados.md) |
-| Pruebas de API y base de datos | **29 de 29 aprobadas** → `pruebas/pruebas_api.py` |
+| Roles | **3 roles con vistas distintas**: propietaria, arquitecta y personal interno → [`docs/10-roles-y-permisos.md`](docs/10-roles-y-permisos.md) |
+| Pruebas de aceptación (interfaz) | **65 de 65 aprobadas** (34 pruebas en dos modos) → [`pruebas/resultados.md`](pruebas/resultados.md) |
+| Pruebas de API y base de datos | **34 de 34 aprobadas** → `pruebas/pruebas_api.py` |
 
 ## Lenguajes y tecnologías
 
@@ -61,11 +62,13 @@ Abra `prototipo/index.html` con doble clic. Funciona igual, pero los datos se gu
 
 ### Usuarios de demostración
 
-| Usuario | Contraseña | Rol | Para qué sirve |
+Cada rol ve una aplicación distinta al ingresar. La matriz completa está en [`docs/10-roles-y-permisos.md`](docs/10-roles-y-permisos.md).
+
+| Usuario | Contraseña | Rol | Qué ve y qué puede hacer |
 |---|---|---|---|
-| `gabriela` | `anemona2026` | Propietaria | Acceso completo |
-| `mariajose` | `anemona2026` | Arquitecta | Acceso completo (la minuta indica los mismos permisos) |
-| `consulta` | `consulta` | Solo consulta | Demostrar el bloqueo por rol (RF-17) |
+| `gabriela` | `anemona2026` | Propietaria | Todo el estudio; administra el sistema |
+| `mariajose` | `anemona2026` | Arquitecta | Sus actividades primero; consulta y modifica todo (como indicó Gabriela en la minuta) |
+| `colaborador` | `colaborador2026` | Personal interno (Daniel Rojas, ficticio) | Solo los proyectos en los que participa; actualiza sus actividades; sin clientes ni cotizaciones |
 
 ## Estructura del repositorio
 
@@ -81,8 +84,8 @@ Abra `prototipo/index.html` con doble clic. Funciona igual, pero los datos se gu
 │   ├── logica.py                  ← reglas de negocio y acceso a datos
 │   └── db/esquema.sql             ← definición de tablas y restricciones
 ├── pruebas/
-│   ├── pruebas_aceptacion.py      ← 31 pruebas de aceptación (Playwright)
-│   ├── pruebas_api.py             ← 29 pruebas de API y base de datos
+│   ├── pruebas_aceptacion.py      ← 34 pruebas de aceptación (Playwright)
+│   ├── pruebas_api.py             ← 34 pruebas de API y base de datos
 │   └── resultados.md              ← último resultado
 └── docs/
     ├── 01-resumen-del-caso.md         problema, stakeholders, alcance
@@ -94,6 +97,7 @@ Abra `prototipo/index.html` con doble clic. Funciona igual, pero los datos se gu
     ├── 07-plan-de-trabajo.md          reparto entre integrantes y pendientes
     ├── 08-arquitectura.md             capas, API REST, seguridad
     ├── 09-guia-de-estilo.md           colores y tipografía de la marca
+    ├── 10-roles-y-permisos.md         qué ve y qué puede hacer cada rol
     └── glosario.md                    términos y siglas
 ```
 
@@ -110,7 +114,7 @@ Abra `prototipo/index.html` con doble clic. Funciona igual, pero los datos se gu
 - La base SQLite es adecuada para un estudio pequeño. Para muchos usuarios simultáneos convendría PostgreSQL, y el esquema SQL se puede trasladar.
 - Quedan fuera del alcance, según el ERS §2.11: la generación de cotizaciones, las notificaciones automáticas, el archivo de fotos y renders y el historial de cambios.
 
-**Usuarios del prototipo:** por ahora solo lo usan los dos integrantes del equipo. Las cuentas `gabriela` y `mariajose` **simulan** los roles de los stakeholders del caso; Anémona no lo utiliza.
+**Usuarios del prototipo:** por ahora solo lo usan los dos integrantes del equipo. Las cuentas `gabriela`, `mariajose` y `colaborador` **simulan** los roles del caso; Anémona no lo utiliza.
 
 ## Declaración de uso de IA
 

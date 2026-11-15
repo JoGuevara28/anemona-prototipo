@@ -33,20 +33,31 @@ MAX_CUERPO = 15 * 1024 * 1024
 COOKIE = "anemona_sesion"
 
 # ------------------------------------------------------------------ rutas de la API
-# (método, patrón, función, requiere permiso de edición)
-RUTAS: list[tuple[str, re.Pattern, object, bool]] = []
+# (método, patrón, función, permiso requerido)
+# Permisos (RF-17, CU-17 · docs/10-roles-y-permisos.md):
+#   "ver"        cualquier usuario autenticado
+#   "todo"       roles que editan todo (propietaria, arquitecta)
+#   "actividad"  además el personal interno, solo en proyectos donde participa
+#   "admin"      solo la propietaria
+RUTAS: list[tuple[str, re.Pattern, object, str]] = []
 
 
-def ruta(metodo: str, patron: str, editar: bool = True):
+def ruta(metodo: str, patron: str, permiso: str = "todo"):
     def deco(fn):
-        RUTAS.append((metodo, re.compile("^" + patron + "$"), fn, editar))
+        RUTAS.append((metodo, re.compile("^" + patron + "$"), fn, permiso))
         return fn
     return deco
 
 
-@ruta("GET", r"/api/datos", editar=False)
+def autorizado(usuario: dict, permiso: str) -> bool:
+    p = usuario["permisos"]
+    return {"ver": True, "todo": p["edita"] == "todo", "admin": p["admin"],
+            "actividad": p["edita"] in ("todo", "actividades")}[permiso]
+
+
+@ruta("GET", r"/api/datos", permiso="ver")
 def _datos(con, cuerpo, usuario):
-    return {"datos": L.datos(con), "catalogos": L.catalogos(con)}
+    return {"datos": L.datos(con, usuario), "catalogos": L.catalogos(con)}
 
 
 @ruta("POST", r"/api/potenciales")
@@ -74,10 +85,10 @@ def _(con, c, u, id): return L.asociar_proveedores(con, id, c)
 @ruta("POST", r"/api/proyectos/(?P<id>\w+)/materiales")
 def _(con, c, u, id): return L.asociar_material(con, id, c)
 
-@ruta("POST", r"/api/actividades")
-def _(con, c, u): return L.crear_actividad(con, c)
-@ruta("PUT", r"/api/actividades/(?P<id>\w+)")
-def _(con, c, u, id): return L.editar_actividad(con, id, c)
+@ruta("POST", r"/api/actividades", permiso="actividad")
+def _(con, c, u): return L.crear_actividad(con, c, u)
+@ruta("PUT", r"/api/actividades/(?P<id>\w+)", permiso="actividad")
+def _(con, c, u, id): return L.editar_actividad(con, id, c, u)
 
 @ruta("POST", r"/api/proveedores")
 def _(con, c, u): return L.crear_proveedor(con, c)
@@ -103,7 +114,7 @@ def _(con, c, u): return L.crear_cotizacion(con, c)
 @ruta("PUT", r"/api/cotizaciones/(?P<id>\w+)")
 def _(con, c, u, id): return L.editar_cotizacion(con, id, c)
 
-@ruta("POST", r"/api/reiniciar")
+@ruta("POST", r"/api/reiniciar", permiso="admin")
 def _(con, c, u):
     L.reiniciar_datos(con)
     return {"ok": True}
@@ -185,7 +196,7 @@ class Manejador(BaseHTTPRequestHandler):
             self._json(401, {"mensaje": "Debe iniciar sesión."})
         except L.Prohibido:
             con.rollback()
-            self._json(403, {"mensaje": "Acción no autorizada para su rol. Este usuario solo puede consultar."})
+            self._json(403, {"mensaje": "Acción no autorizada para su rol."})
         except L.NoEncontrado:
             con.rollback()
             self._json(404, {"mensaje": "Registro no encontrado."})
@@ -219,6 +230,8 @@ class Manejador(BaseHTTPRequestHandler):
             return self._json(200, {"usuario": usuario})
         m = re.fullmatch(r"/api/cotizaciones/(\w+)/archivo", ruta_)
         if m and metodo == "GET":
+            if not usuario["permisos"]["comercial"]:
+                raise L.Prohibido()
             nombre, tipo, contenido = L.archivo_cotizacion(con, m.group(1))
             self.send_response(200)
             self.send_header("Content-Type", tipo)
@@ -228,10 +241,10 @@ class Manejador(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(contenido)
             return
-        for verbo, patron, fn, requiere_edicion in RUTAS:
+        for verbo, patron, fn, permiso in RUTAS:
             coincide = patron.match(ruta_)
             if verbo == metodo and coincide:
-                if requiere_edicion and not usuario["edit"]:
+                if not autorizado(usuario, permiso):
                     raise L.Prohibido()
                 cuerpo = self._cuerpo() if metodo in ("POST", "PUT") else {}
                 resultado = fn(con, cuerpo, usuario, **coincide.groupdict())

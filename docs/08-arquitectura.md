@@ -37,7 +37,7 @@ La interfaz detecta sola el modo: consulta `/api/salud` y, si responde, trabaja 
 
 ## API REST
 
-Todas las rutas, salvo `/api/salud` y `POST /api/sesion`, requieren una sesión iniciada. Las que modifican datos requieren además un rol con permiso de edición.
+Todas las rutas, salvo `/api/salud` y `POST /api/sesion`, requieren una sesión iniciada. Las que modifican datos requieren además el permiso del rol: las actividades admiten al personal interno en sus proyectos, `/api/reiniciar` es solo para la propietaria y el resto exige un rol que edite todo. Ver [`10-roles-y-permisos.md`](10-roles-y-permisos.md).
 
 | Método | Ruta | RF | Descripción |
 |---|---|---|---|
@@ -78,7 +78,7 @@ Todas las rutas, salvo `/api/salud` y `POST /api/sesion`, requieren una sesión 
 - **Contraseñas cifradas** con PBKDF2-SHA256 (120 000 iteraciones), cada una con su propia sal. La base nunca guarda la contraseña.
 - **Sesiones** con un token aleatorio de 256 bits, guardado en la tabla `sesion`, que vence a las 8 horas.
 - **Cookie de sesión** `HttpOnly` y `SameSite=Strict`: JavaScript no puede leerla y no se envía desde otros sitios.
-- **Permisos en el servidor:** el rol «consulta» recibe 403 en cualquier modificación, aunque use la API directamente (prueba PA-31).
+- **Roles y permisos en el servidor:** tres roles definidos en la tabla `rol`. Cada ruta de la API declara su permiso y el servidor responde 403 si el rol no lo tiene. Además, `/api/datos` filtra lo que cada rol recibe; por ejemplo, el personal interno no recibe datos de contacto ni cotizaciones. Detalle en [`10-roles-y-permisos.md`](10-roles-y-permisos.md).
 - **Archivos estáticos:** el servidor solo entrega archivos dentro de `prototipo/`; no se puede leer el código ni la base desde el navegador.
 - **Documentos adjuntos:** máximo 10 MB y solo PDF, PNG, JPG o DOCX.
 - **Consultas SQL parametrizadas** en todas las operaciones, para evitar inyección SQL.

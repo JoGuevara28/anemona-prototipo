@@ -411,13 +411,57 @@ def _(pg):
     check("rechazado" in pg.inner_text("#loginf .msg"), "no rechazó credenciales inválidas")
 
 
-@prueba("PA-27", "CU-17 · CA2 / Flujo alterno 2", "Un usuario sin permiso de modificación es bloqueado e informado")
+@prueba("PA-27", "CU-17 · CA2 / Flujo alterno 2", "Si el personal interno intenta entrar a una sección de otro rol, el sistema la bloquea e informa")
 def _(pg):
-    entrar(pg, "consulta", "consulta"); ir(pg, "clientes")
-    pg.click("button[data-act=nuevoCliente]")
-    pausa(pg)
-    check(not hay_modal(pg), "abrió el formulario de registro")
-    check("no autorizada" in toasts(pg), "no informó la falta de permiso")
+    entrar(pg, "colaborador", "colaborador2026"); ir(pg, "clientes")
+    vista = pg.inner_text("#view")
+    check("no autorizado" in vista, "no informó la falta de permiso")
+    check("Laura Méndez" not in vista and pg.locator("[data-act=nuevoCliente]").count() == 0, "mostró datos o acciones de clientes")
+
+
+# ---------------------------------------------------------------- roles (RF-17, ERS §2.3 y §2.9)
+@prueba("PA-32", "RF-17 · ERS §2.9 · roles", "Al ingresar, cada rol ve una aplicación distinta (menú, inicio y administración)")
+def _(pg):
+    menus, resets, kpis = {}, {}, {}
+    for u, c in (("gabriela", "anemona2026"), ("mariajose", "anemona2026"), ("colaborador", "colaborador2026")):
+        entrar(pg, u, c)
+        menus[u] = pg.locator(".side nav a").all_inner_texts()
+        resets[u] = pg.locator("[data-act=reset]").count()
+        kpis[u] = pg.inner_text(".kpis")
+        pg.click("button[data-act=logout]")
+        pg.wait_for_selector("#loginf")
+    check("Potenciales clientes" in menus["gabriela"] and "Clientes" in menus["mariajose"], "propietaria o arquitecta sin secciones comerciales")
+    check(not {"Potenciales clientes", "Clientes", "Cotizador"} & set(menus["colaborador"]), "el personal interno ve secciones comerciales")
+    check(resets == {"gabriela": 1, "mariajose": 0, "colaborador": 0}, f"administración mal asignada: {resets}")
+    check("estudio" in kpis["gabriela"] and "Mis actividades" in kpis["mariajose"] and "participo" in kpis["colaborador"], "el inicio no cambia según el rol")
+
+
+@prueba("PA-33", "RF-17 · ERS §2.9 · roles", "El personal interno solo ve los proyectos en los que participa y sin datos de contacto del cliente")
+def _(pg):
+    entrar(pg, "colaborador", "colaborador2026"); ir(pg, "proyectos")
+    nombres = pg.locator(".pcard b").all_inner_texts()
+    check(sorted(nombres) == ["Mueble de TV a medida", "Remodelación de cocina Solís"], f"proyectos visibles: {nombres}")
+    ir(pg, "proyecto-p1")
+    check("No encontrado" in pg.inner_text("#view"), "puede abrir un proyecto en el que no participa")
+    ir(pg, "proyecto-p2")
+    vista = pg.inner_text("#view")
+    check("8765-4321" not in vista and pg.locator("a[href='#cliente-c1']").count() == 0, "muestra contacto o enlace al cliente")
+    check(pg.locator("button.tab[data-id=cotizaciones]").count() == 0, "muestra cotizaciones")
+
+
+@prueba("PA-34", "RF-17 · ERS §2.9 · roles", "El personal interno actualiza actividades de su proyecto, pero no el proyecto ni catálogos")
+def _(pg):
+    entrar(pg, "colaborador", "colaborador2026"); ir(pg, "proyecto-p2")
+    check(pg.locator("select[data-chg=estadoProy]").count() == 0 and pg.locator("[data-act=editProyecto]").count() == 0, "puede cambiar el proyecto")
+    pg.click("button.tab[data-id=actividades]"); pausa(pg)
+    pg.click("button[data-act=nuevaAct]")
+    pg.fill("[name=nombre]", "Revisión de herrajes")
+    pg.select_option("[name=responsable]", "Daniel Rojas")
+    pg.fill("[name=fecha]", datetime.date.today().isoformat())
+    guardar(pg)
+    check("Revisión de herrajes" in pg.inner_text("#view"), "no pudo registrar su actividad")
+    ir(pg, "materiales")
+    check(pg.locator("[data-act=nuevoMat]").count() == 0, "puede registrar materiales")
 
 
 # ---------------------------------------------------------------- RNF
@@ -470,10 +514,12 @@ def _(pg):
 
 @prueba("PA-31", "RF-17 · base de datos", "El servidor rechaza modificaciones de un usuario sin permiso aunque se salte la interfaz", solo="servidor")
 def _(pg):
-    entrar(pg, "consulta", "consulta")
+    entrar(pg, "colaborador", "colaborador2026")
     estado = pg.evaluate("""async () => (await fetch('/api/clientes', {method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({nombre: 'Intruso', tipoId: 'Cédula', numId: '109990999', telefono: '88889999'})})).status""")
     check(estado == 403, f"el servidor respondió {estado} en lugar de 403")
+    datos = pg.evaluate("async () => (await (await fetch('/api/datos')).json()).datos")
+    check(not datos["leads"] and not datos["cotizaciones"] and "telefono" not in datos["clientes"][0], "el servidor envía datos comerciales al personal interno")
 
 
 # ---------------------------------------------------------------- ejecución
@@ -551,7 +597,7 @@ def main():
         f"Ejecución: {fecha} · **{aprobadas} de {total} ejecuciones aprobadas** ({len(PRUEBAS)} pruebas × modos {', '.join(modos)})",
         "",
         "Generado automáticamente por `pruebas/pruebas_aceptacion.py`. Cada prueba verifica un criterio de aceptación (CA) "
-        "de un caso de uso del ERS o un requisito no funcional. Las pruebas PA-29 a PA-31 verifican la base de datos y solo aplican al modo servidor.",
+        "de un caso de uso del ERS o un requisito no funcional. Las pruebas PA-29 a PA-31 verifican la base de datos y solo aplican al modo servidor. PA-32 a PA-34 verifican que cada rol vea una aplicación distinta.",
         "",
         "| Código | Origen | Criterio verificado | " + " | ".join(f"Modo {m}" for m in modos) + " |",
         "|---|---|---|" + "---|" * len(modos),

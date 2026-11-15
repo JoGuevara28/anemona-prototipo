@@ -6,7 +6,7 @@ Entidades y relaciones del prototipo. El diagrama es **conceptual**: muestra qu�
 
 | Tabla | Contenido | Restricciones clave |
 |---|---|---|
-| `usuario`, `sesion` | Personal del estudio y sesiones activas | Usuario único; contraseña como hash PBKDF2 |
+| `rol`, `usuario`, `sesion` | Roles con sus permisos, personal del estudio y sesiones activas | Usuario único con FK a `rol`; contraseña como hash PBKDF2 |
 | `tipo_servicio`, `estado_proyecto`, `transicion_estado`, `categoria`, `plan_actividad` | Catálogos (RN-03) y plan de acción | Llaves primarias; transiciones con FK a estados |
 | `potencial_cliente` | RF-01 a RF-03 | Al menos un medio de contacto; estado dentro del catálogo; `convertido_a` → cliente |
 | `cliente` | RF-04 | `UNIQUE(tipo_id, num_id_normal)` |

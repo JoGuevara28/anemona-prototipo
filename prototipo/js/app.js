@@ -12,13 +12,13 @@
 'use strict';
 
 /* ================= Catálogos (en modo servidor se cargan desde la base) ================= */
-const LS='anemona-proto-v2';
+const LS='anemona-proto-v3';
 let TIPOS=['Anteproyecto','Diseño de interiores','Mobiliario a medida','Remodelación','Gestión de construcción'];
 let ESTADOS=['Por iniciar','En diseño','En ejecución','En pausa','Finalizado','Cancelado'];
 let TRANS={'Por iniciar':['En diseño','Cancelado'],'En diseño':['En ejecución','En pausa','Finalizado','Cancelado'],'En ejecución':['En pausa','Finalizado','Cancelado'],'En pausa':['En diseño','En ejecución','Cancelado'],'Finalizado':[],'Cancelado':[]};
 let ACTIVOS=['Por iniciar','En diseño','En ejecución'];
 let CATS=['Iluminación','Mobiliario','Ebanistería','Construcción','Acabados','Materiales','Electrodomésticos','Otros servicios'];
-let RESP=['Gabriela Núñez','María José','Colaborador externo'];
+let RESP=['Gabriela Núñez','María José','Daniel Rojas','Colaborador externo'];
 /* Plan de acción por tipo de servicio (minuta 01, tema 3) — [nombre, días desde el inicio, entregable, responsable] */
 let PLAN={
  'Anteproyecto':[['Reunión inicial con el cliente',0],['Levantamiento del sitio',5],['Propuesta conceptual',14,1],['Revisión con el cliente',18],['Ajustes y entrega del anteproyecto',28,1]],
@@ -36,12 +36,21 @@ const KIND_PROY={'Por iniciar':'info','En diseño':'sea','En ejecución':'coral'
 const KIND_LEAD={'Nuevo':'info','Contactado':'sea','Reunión agendada':'coral','Cotización enviada':'warn','No continuó':'mute','Convertido':'ok'};
 const KIND_ACT={'Pendiente':'info','En proceso':'warn','Completada':'ok'};
 const KIND_COT={'Enviada':'warn','Aceptada':'ok','Rechazada':'mute'};
+/* Roles (RF-17, CU-17 · docs/10-roles-y-permisos.md) — iguales a la tabla `rol` del servidor
+   [nombre, ve información comercial, qué edita, administra, alcance de proyectos] */
+const ROLES_DEMO={
+ propietaria:['Propietaria',1,'todo',1,'todos'],
+ arquitecta:['Arquitecta',1,'todo',0,'todos'],
+ colaborador:['Personal interno',0,'actividades',0,'participa']
+};
+const VISTAS_BASE=['inicio','proyectos','calendario','proveedores','materiales','buscar','acerca'],VISTAS_COM=['potenciales','clientes','cotizador'];
+function permisosDe(c){const [,com,ed,adm,alc]=ROLES_DEMO[c];return {vistas:VISTAS_BASE.concat(com?VISTAS_COM:[]),comercial:!!com,edita:ed,admin:!!adm,alcance:alc}}
 /* Usuarios del modo demostración (en modo servidor se validan contra la base, con contraseña cifrada) */
 const USERS_DEMO=[
- {u:'gabriela',p:'anemona2026',nombre:'Gabriela Núñez',ini:'GN',rol:'Propietaria',edit:true},
- {u:'mariajose',p:'anemona2026',nombre:'María José',ini:'MJ',rol:'Arquitecta',edit:true},
- {u:'consulta',p:'consulta',nombre:'Usuario de consulta',ini:'UC',rol:'Solo consulta (demo)',edit:false}
-];
+ {u:'gabriela',p:'anemona2026',nombre:'Gabriela Núñez',ini:'GN',rolCodigo:'propietaria'},
+ {u:'mariajose',p:'anemona2026',nombre:'María José',ini:'MJ',rolCodigo:'arquitecta'},
+ {u:'colaborador',p:'colaborador2026',nombre:'Daniel Rojas',ini:'DR',rolCodigo:'colaborador'}
+].map(u=>({...u,rol:ROLES_DEMO[u.rolCodigo][0],permisos:permisosDe(u.rolCodigo),edit:ROLES_DEMO[u.rolCodigo][2]==='todo'}));
 const MAX_ARCHIVO=10*1024*1024;
 
 /* ================= Utilidades ================= */
@@ -68,7 +77,7 @@ const arcos=(w,c)=>`<svg class="arcos" width="${w}" height="${w*.42}" viewBox="0
 const marca=()=>`<div class="marca">${arcos(54,'#1d1c1a')}<span class="wm">anemona</span><span class="ds">design studio</span></div>`;
 
 /* ================= Estado ================= */
-let DB=null, USER=null, MODO='demo';
+let DB=null, DBT=null, USER=null, MODO='demo';  // DBT: todos los datos (modo demostración); DB: lo que el rol puede ver
 const ui={tab:'resumen',lastProj:null,leadF:'activos',pf:{tipo:'',estado:'',q:''},provCat:'',matCat:'',cal:null,calResp:'',q:''};
 
 /* ================= Capa de datos =================
@@ -97,8 +106,21 @@ async function recargar(){
   if(r.status===401){USER=null;return}
   if(r.status===200){DB=r.datos;aplicarCatalogos(r.catalogos)}
 }
-function load(){try{const s=localStorage.getItem(LS);if(s){DB=JSON.parse(s);return}}catch(e){}DB=seed()}
-function save(){if(MODO!=='demo')return;try{localStorage.setItem(LS,JSON.stringify(DB))}catch(e){}}
+function load(){try{const s=localStorage.getItem(LS);if(s){DBT=JSON.parse(s)}}catch(e){}if(!DBT)DBT=seed();DB=DBT}
+function save(){if(MODO!=='demo')return;try{localStorage.setItem(LS,JSON.stringify(DBT))}catch(e){}}
+/* Misma regla que logica.filtrar_por_rol en el servidor */
+function filtrarPorRol(d,u){
+  const p=u.permisos;if(p.alcance==='todos'&&p.comercial)return d;
+  const v={...d};
+  if(p.alcance==='participa'){
+    const part=new Set(d.actividades.filter(a=>a.responsable===u.nombre).map(a=>a.proyectoId));const en=x=>part.has(x.proyectoId);
+    v.proyectos=d.proyectos.filter(x=>part.has(x.id));v.actividades=d.actividades.filter(en);v.provProy=d.provProy.filter(en);v.matProy=d.matProy.filter(en);v.cotizaciones=d.cotizaciones.filter(en);
+  }
+  if(!p.comercial){const vis=new Set(v.proyectos.map(x=>x.clienteId));
+    v.clientes=d.clientes.filter(c=>vis.has(c.id)).map(c=>({id:c.id,nombre:c.nombre}));v.leads=[];v.cotizaciones=[]}
+  return v;
+}
+function vistaDemo(){if(MODO==='demo')DB=USER?filtrarPorRol(DBT,USER):DBT}
 
 async function op(nombre,a){
   const o=OPS[nombre];
@@ -110,10 +132,16 @@ async function op(nombre,a){
     if(r.status<200||r.status>=300){toast(r.mensaje||'No se pudo completar la operación.','err');return {cancel:true}}
     await recargar();return r;
   }
-  const r=o.local(a)||{};
+  /* modo demostración: mismos permisos que el servidor */
+  const req=PERMISO_OP[nombre]||'todo';
+  const ok=req==='admin'?esAdmin():req==='actividad'?canAct(a.proyectoId||(byId('actividades',a.id)||{}).proyectoId):can();
+  if(!ok){toast('Acción no autorizada para su rol ('+USER.rol+').','err');return {cancel:true}}
+  DB=DBT;let r;
+  try{r=o.local(a)||{}}finally{DBT=DB;vistaDemo()}
   if(r.errors)return r;
-  save();return r;
+  save();vistaDemo();return r;
 }
+const PERMISO_OP={crearActividad:'actividad',editarActividad:'actividad',reiniciar:'admin'};
 
 /* Operaciones: ruta de la API + implementación local equivalente */
 const err=(k,m)=>({errors:{[k]:m}});
@@ -165,8 +193,12 @@ function seed(){
    {id:'p3',clienteId:'c2',nombre:'Remodelación de cocina Solís',tipo:'Remodelación',descripcion:'Remodelación de cocina con nueva distribución, muebles y acabados.',fechaInicio:addDays(T,5),ubicacion:'Santa Ana, San José',area:18,estado:'Por iniciar'},
    {id:'p4',clienteId:'c2',nombre:'Anteproyecto casa de playa',tipo:'Anteproyecto',descripcion:'Anteproyecto de vivienda vacacional. Solo trabajo interno del estudio (sin proveedores ni materiales).',fechaInicio:addDays(T,12),ubicacion:'Nosara, Guanacaste',area:160,estado:'Por iniciar'}];
   const a1=planActs('p1','Diseño de interiores',addDays(T,-20)).map(a=>({...a,estado:a.fecha<T?(a.nombre.includes('comentarios')?'Pendiente':'Completada'):(a.nombre.includes('planos')?'En proceso':'Pendiente')}));
+  // Daniel Rojas (personal interno) participa en el mueble de TV y en la remodelación de cocina
+  const DANIEL=['Coordinación con ebanista','Fabricación','Instalación y entrega','Selección de materiales'];
   const a2=planActs('p2','Mobiliario a medida',addDays(T,-15)).map(a=>({...a,estado:a.fecha<T?'Completada':(a.nombre==='Fabricación'?'En proceso':'Pendiente')}));
-  d.actividades=[...a1,...a2,...planActs('p3','Remodelación',addDays(T,5))];
+  const a3=planActs('p3','Remodelación',addDays(T,5));
+  [...a2,...a3].forEach(a=>{if(DANIEL.includes(a.nombre))a.responsable='Daniel Rojas'});
+  d.actividades=[...a1,...a2,...a3];
   d.proveedores=[
    {id:'v1',nombre:'Luz & Forma',categorias:['Iluminación'],contacto:'Pamela Ruiz',telefono:'8811-2233',correo:'ventas@luzyforma.cr',ofrece:'Lámparas colgantes, apliques, cintas LED.',notas:'Responde rápido; buena experiencia previa.'},
    {id:'v2',nombre:'Iluminarte',categorias:['Iluminación'],contacto:'Diego Castro',telefono:'2222-3344',correo:'',ofrece:'Iluminación decorativa importada.',notas:'Tiempos de entrega de 3–4 semanas.'},
@@ -186,8 +218,33 @@ function seed(){
 }
 
 /* ================= Acceso ================= */
-const can=()=>!!(USER&&USER.edit);
-function needEdit(){if(can())return true;toast('Acción no autorizada para el rol «'+USER.rol+'». Este usuario solo puede consultar.','err');return false}
+const P=()=>USER.permisos;
+const puedeVer=v=>!!USER&&P().vistas.includes(v);
+const can=()=>!!USER&&P().edita==='todo';                       // registrar y modificar todo
+const canAct=pid=>can()||(!!USER&&P().edita==='actividades'&&DB.proyectos.some(p=>p.id===pid)); // actividades de sus proyectos
+const esAdmin=()=>!!USER&&P().admin;                               // funciones de administración
+function denegar(){toast('Acción no autorizada para su rol ('+USER.rol+').','err');return false}
+function needEdit(){return can()||denegar()}
+/* Permiso que exige cada botón; aplicarPermisos() quita de la pantalla lo que el rol no puede usar (CU-17) */
+const PERMISO_BOTON={reset:'admin',cargarPlan:'todo',nuevaAct:'actProy',verAct:'actAct'};
+function permitido(accion,id){
+  const req=PERMISO_BOTON[accion]||'todo';
+  if(req==='admin')return esAdmin();
+  if(req==='actProy')return canAct(id);
+  if(req==='actAct')return canAct((byId('actividades',id)||{}).proyectoId);
+  return can();
+}
+const ACCIONES_DE_NAVEGACION=new Set(['tab','leadF','provCat','pfClear','calMove','logout','editLead','verAct']);
+function aplicarPermisos(raiz){
+  raiz.querySelectorAll('button[data-act]').forEach(b=>{const a=b.dataset.act;if(!ACCIONES_DE_NAVEGACION.has(a)&&!permitido(a,b.dataset.id))b.remove();else if(a==='verAct'&&!permitido(a,b.dataset.id))b.remove()});
+  raiz.querySelectorAll('tr[data-act="editMat"]').forEach(t=>{if(!can()){t.removeAttribute('data-act');t.classList.remove('click')}});
+  raiz.querySelectorAll('select[data-chg="estadoProy"]').forEach(x=>{if(!can())x.remove()});
+  raiz.querySelectorAll('select[data-chg="condProv"]').forEach(x=>{if(!can())x.disabled=true});
+  raiz.querySelectorAll('select[data-chg="estadoAct"]').forEach(x=>{if(!permitido('verAct',x.dataset.id))x.disabled=true});
+  raiz.querySelectorAll('[data-cot-material],[data-cot-cantidad]').forEach(x=>{if(!can())x.disabled=true});
+}
+/* Al ingresar: el calendario muestra primero las actividades propias (salvo la propietaria) */
+function alIngresar(){ui.calResp=USER.rolCodigo==='propietaria'?'':USER.nombre;vistaDemo()}
 
 /* ================= Modal, formularios y mensajes ================= */
 function toast(msg,kind){const t=document.createElement('div');t.className='toast '+(kind||'ok');t.textContent=msg;$('#toasts').appendChild(t);setTimeout(()=>t.classList.add('out'),3400);setTimeout(()=>t.remove(),3900)}
@@ -301,7 +358,8 @@ function vLogin(){
    <div class="msg"></div>
    <button class="btn" style="width:100%;margin-top:16px;padding:11px;justify-content:center">Ingresar</button>
    <div class="demo"><b style="font-weight:500">Usuarios de demostración</b> <span class="muted">(clic para completar)</span><table>
-   ${USERS_DEMO.map(u=>`<tr data-fill="${u.u}|${u.p}"><td>${esc(u.nombre)}<br><small class="muted">${esc(u.rol)}</small></td><td><code>${u.u}</code></td><td><code>${u.p}</code></td></tr>`).join('')}</table></div>
+   ${USERS_DEMO.map(u=>`<tr data-fill="${u.u}|${u.p}"><td>${esc(u.nombre)}<br><small class="muted">${esc(u.rol)}</small></td><td><code>${u.u}</code></td><td><code>${u.p}</code></td></tr>`).join('')}</table>
+   <small class="muted">Cada rol ve una aplicación distinta: la propietaria administra todo, la arquitecta trabaja sobre todos los proyectos y el personal interno solo ve los proyectos en los que participa.</small></div>
   </form></div></div>`}
 
 const NAV=[['inicio','Inicio'],['potenciales','Potenciales clientes'],['clientes','Clientes'],['proyectos','Proyectos'],['calendario','Calendario'],['proveedores','Proveedores'],['materiales','Materiales'],['acerca','Acerca del prototipo']];
@@ -309,33 +367,49 @@ const PARENT={cliente:'clientes',proyecto:'proyectos',proveedor:'proveedores',bu
 function shell(view,content){
   const act=PARENT[view]!==undefined?PARENT[view]:view;
   return `<div class="layout"><aside class="side"><div class="sello">${marca()}</div>
-  <nav>${NAV.map(([k,l])=>`<a href="#${k}" class="${act===k?'on':''}"><span>${l}</span></a>`).join('')}</nav>
+  <nav>${NAV.filter(([k])=>puedeVer(k)).map(([k,l])=>`<a href="#${k}" class="${act===k?'on':''}"><span>${l}</span></a>`).join('')}</nav>
   <div class="side-foot"><div class="modo ${MODO}"><i></i><span>${MODO==='api'?'Base de datos SQLite conectada':'Modo demostración (datos en este navegador)'}</span></div>
   <button class="linkbtn" data-act="reset">Restablecer datos de ejemplo</button></div></aside>
-  <div class="main"><header class="top"><form class="search" data-search><input name="q" placeholder="Buscar clientes, proyectos, proveedores, materiales…" value="${esc(ui.q)}" aria-label="Búsqueda general"></form>
+  <div class="main"><header class="top"><form class="search" data-search><input name="q" placeholder="${P().comercial?'Buscar clientes, proyectos, proveedores, materiales…':'Buscar proyectos, proveedores, materiales…'}" value="${esc(ui.q)}" aria-label="Búsqueda general"></form>
   <div class="user"><span class="avatar">${USER.ini}</span><div><b>${esc(USER.nombre)}</b><small>${esc(USER.rol)}</small></div><button class="btn ghost sm" data-act="logout">Salir</button></div></header>
   <main id="view">${content}</main></div></div>`}
 
 function vInicio(){
-  const T=today();
+  /* Cada rol ve su propio inicio (CU-17: cada usuario accede a lo que corresponde a su rol) */
+  const T=today(),yo=USER.nombre,rol=USER.rolCodigo;
   const abiertos=DB.proyectos.filter(p=>!['Finalizado','Cancelado'].includes(p.estado)).map(p=>p.id);
   const pend=DB.actividades.filter(a=>a.estado!=='Completada'&&abiertos.includes(a.proyectoId));
-  const atras=pend.filter(a=>a.fecha<T).sort(byFecha);
-  const prox=pend.filter(a=>a.fecha>=T&&diff(a.fecha)<=14).sort(byFecha);
-  const entProx=prox.filter(a=>a.entregable);
+  const mias=pend.filter(a=>a.responsable===yo);
+  const base=rol==='propietaria'?pend:mias;
+  const atras=base.filter(a=>a.fecha<T).sort(byFecha);
+  const prox=base.filter(a=>a.fecha>=T&&diff(a.fecha)<=(rol==='propietaria'?14:30)).sort(byFecha);
+  const entProx=prox.filter(a=>a.entregable&&diff(a.fecha)<=14);
   const activos=DB.proyectos.filter(p=>ACTIVOS.includes(p.estado));
   const leads=DB.leads.filter(l=>!l.convertidoA&&l.estado!=='No continuó');
   const h=new Date().getHours();const sal=h<12?'Buenos días':h<19?'Buenas tardes':'Buenas noches';
   const fecha=new Date().toLocaleDateString('es-CR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   const kpi=(n,l,href,c)=>`<a class="kpi ${c||''}" href="${href}"><div class="n">${n}</div><span>${l}</span></a>`;
   const urg=[...atras,...prox].slice(0,9);
-  return ph(`${sal}, <b>${esc(USER.nombre.split(' ')[0])}</b>`,fecha.charAt(0).toUpperCase()+fecha.slice(1),
-    `<button class="btn ghost" data-act="nuevoLead">+ Potencial cliente</button><button class="btn" data-act="nuevoProyecto">+ Nuevo proyecto</button>`)+
-  `<div class="kpis">${kpi(activos.length,'Proyectos activos','#proyectos')}${kpi(pend.length,'Tareas pendientes','#calendario')}${kpi(entProx.length,'Entregables en los próximos 14 días','#calendario','madera')}${kpi(atras.length,'Actividades atrasadas','#calendario',atras.length?'alerta':'')}${kpi(leads.length,'Potenciales clientes en seguimiento','#potenciales')}</div>
-  <div class="grid2"><section class="card"><h3>Urgente y próximo</h3>${urg.length?`<div class="alist">${urg.map(a=>actRow(a,true)).join('')}</div>`:emptyBox('No hay actividades pendientes en los próximos 14 días.')}</section>
-  <section class="card"><h3>Proyectos activos</h3>${activos.length?`<div class="plist">${activos.map(p=>{const nx=projActs(p.id).find(a=>a.estado!=='Completada');
-    return `<a class="pitem" href="#proyecto-${p.id}"><div><b>${esc(p.nombre)}</b><small>${esc(cliName(p.clienteId))} · ${esc(p.tipo)}</small><br>${badge(p.estado,KIND_PROY[p.estado])} ${nx?`<small>Siguiente: ${esc(nx.nombre)} (${fd(nx.fecha)})</small>`:''}</div><div>${progHtml(p.id)}</div></a>`}).join('')}</div>`:emptyBox('No hay proyectos activos.')}</section></div>
-  <p class="note"><b>Origen:</b> esta pantalla responde a lo que Gabriela pidió ver al iniciar el día (minuta 01, tema 6): proyectos activos, tareas pendientes, entregables próximos y actividades urgentes.</p>`}
+  const listaProy=ps=>ps.length?`<div class="plist">${ps.map(p=>{const nx=projActs(p.id).find(a=>a.estado!=='Completada'&&(rol==='propietaria'||a.responsable===yo))||projActs(p.id).find(a=>a.estado!=='Completada');
+    return `<a class="pitem" href="#proyecto-${p.id}"><div><b>${esc(p.nombre)}</b><small>${esc(cliName(p.clienteId))} · ${esc(p.tipo)}</small><br>${badge(p.estado,KIND_PROY[p.estado])} ${nx?`<small>Siguiente: ${esc(nx.nombre)} (${fd(nx.fecha)})</small>`:''}</div><div>${progHtml(p.id)}</div></a>`}).join('')}</div>`:emptyBox('No hay proyectos activos.');
+  const acciones=`<button class="btn ghost" data-act="nuevoLead">+ Potencial cliente</button><button class="btn" data-act="nuevoProyecto">+ Nuevo proyecto</button>`;
+  const cab=sub=>ph(`${sal}, <b>${esc(yo.split(' ')[0])}</b>`,fecha.charAt(0).toUpperCase()+fecha.slice(1)+(sub?' · '+sub:''),acciones);
+  if(rol==='propietaria')return cab('vista general del estudio')+
+  `<div class="kpis">${kpi(activos.length,'Proyectos activos','#proyectos')}${kpi(pend.length,'Tareas pendientes del estudio','#calendario')}${kpi(entProx.length,'Entregables en los próximos 14 días','#calendario','madera')}${kpi(atras.length,'Actividades atrasadas','#calendario',atras.length?'alerta':'')}${kpi(leads.length,'Potenciales clientes en seguimiento','#potenciales')}</div>
+  <div class="grid2"><section class="card"><h3>Urgente y próximo en el estudio</h3>${urg.length?`<div class="alist">${urg.map(a=>actRow(a,true)).join('')}</div>`:emptyBox('No hay actividades pendientes en los próximos 14 días.')}</section>
+  <section class="card"><h3>Proyectos activos</h3>${listaProy(activos)}</section></div>
+  <p class="note"><b>Su vista:</b> como propietaria ve todo el estudio: proyectos, tareas de todo el equipo, entregables próximos, urgencias y potenciales clientes. También administra el sistema.</p>`;
+  if(rol==='arquitecta')return cab('sus actividades primero')+
+  `<div class="kpis">${kpi(mias.length,'Mis actividades pendientes','#calendario')}${kpi(entProx.length,'Mis entregables en los próximos 14 días','#calendario','madera')}${kpi(atras.length,'Mis actividades atrasadas','#calendario',atras.length?'alerta':'')}${kpi(activos.length,'Proyectos activos del estudio','#proyectos')}${kpi(leads.length,'Potenciales clientes en seguimiento','#potenciales')}</div>
+  <div class="grid2"><section class="card"><h3>Mis actividades</h3>${urg.length?`<div class="alist">${urg.map(a=>actRow(a,true)).join('')}</div>`:emptyBox('No tiene actividades pendientes en los próximos 30 días.')}</section>
+  <section class="card"><h3>Proyectos activos del estudio</h3>${listaProy(activos)}</section></div>
+  <p class="note"><b>Su vista:</b> como arquitecta ve primero las actividades que tiene asignadas, como planos y renders. Puede consultar y modificar toda la información del estudio.</p>`;
+  const misProy=DB.proyectos.filter(p=>!['Finalizado','Cancelado'].includes(p.estado));
+  return ph(`${sal}, <b>${esc(yo.split(' ')[0])}</b>`,fecha.charAt(0).toUpperCase()+fecha.slice(1)+' · sus proyectos y actividades','')+
+  `<div class="kpis">${kpi(misProy.length,'Proyectos en los que participo','#proyectos')}${kpi(mias.length,'Mis actividades pendientes','#calendario')}${kpi(entProx.length,'Mis entregables en los próximos 14 días','#calendario','madera')}${kpi(atras.length,'Mis actividades atrasadas','#calendario',atras.length?'alerta':'')}</div>
+  <div class="grid2"><section class="card"><h3>Mis actividades</h3>${urg.length?`<div class="alist">${urg.map(a=>actRow(a,true)).join('')}</div>`:emptyBox('No tiene actividades pendientes en los próximos 30 días.')}</section>
+  <section class="card"><h3>Mis proyectos</h3>${listaProy(misProy)}</section></div>
+  <p class="note"><b>Su vista:</b> como personal interno ve solo los proyectos en los que participa y puede registrar o actualizar sus actividades. La información de clientes, potenciales clientes y cotizaciones no está disponible para su rol.</p>`}
 
 /* ---------- Potenciales clientes RF-01, RF-02, RF-03 ---------- */
 function vPotenciales(){
@@ -418,7 +492,7 @@ function projTable(ps,showCli){return `<div class="tblwrap"><table class="tbl"><
 function vProyectos(){
   const f=ui.pf;const q=norm(f.q);
   const rows=DB.proyectos.filter(p=>(!f.tipo||p.tipo===f.tipo)&&(!f.estado||p.estado===f.estado)&&(!q||norm(p.nombre+' '+cliName(p.clienteId)+' '+p.ubicacion).includes(q)));
-  return ph('<b>Proyectos</b>','Todos los proyectos del estudio, clasificados por tipo de servicio y estado.',`<button class="btn" data-act="nuevoProyecto">+ Nuevo proyecto</button>`)+
+  return ph('<b>Proyectos</b>',(P().alcance==='participa'?'Los proyectos en los que usted participa, clasificados por tipo de servicio y estado.':'Todos los proyectos del estudio, clasificados por tipo de servicio y estado.'),`<button class="btn" data-act="nuevoProyecto">+ Nuevo proyecto</button>`)+
   `<div class="filters"><select data-chg="pfTipo" aria-label="Filtrar por tipo"><option value="">Todos los tipos</option>${TIPOS.map(t=>opt(t,f.tipo)).join('')}</select>
    <select data-chg="pfEstado" aria-label="Filtrar por estado"><option value="">Todos los estados</option>${ESTADOS.map(t=>opt(t,f.estado)).join('')}</select>
    <input data-chg="pfQ" placeholder="Nombre, cliente o ubicación…" value="${esc(f.q)}">
@@ -448,20 +522,22 @@ function vProyecto(id){
   const p=byId('proyectos',id);if(!p)return notFound('proyecto');
   if(ui.lastProj!==id){ui.tab='resumen';ui.lastProj=id}
   const acts=projActs(id),provs=DB.provProy.filter(x=>x.proyectoId===id),mats=DB.matProy.filter(x=>x.proyectoId===id),cots=DB.cotizaciones.filter(x=>x.proyectoId===id);
-  const tabs=[['resumen','Resumen',null],['actividades','Actividades',acts.length],['proveedores','Proveedores',provs.length],['materiales','Materiales y productos',mats.length],['cotizaciones','Cotizaciones',cots.length]];
+  const tabs=[['resumen','Resumen',null],['actividades','Actividades',acts.length],['proveedores','Proveedores',provs.length],['materiales','Materiales y productos',mats.length],['cotizaciones','Cotizaciones',cots.length]].filter(([k])=>k!=='cotizaciones'||P().comercial);
+  if(ui.tab==='cotizaciones'&&!P().comercial)ui.tab='resumen';
+  const cliLink=puedeVer('clientes')?`<a href="#cliente-${p.clienteId}">${esc(cliName(p.clienteId))}</a>`:esc(cliName(p.clienteId));
   const permit=TRANS[p.estado]||[];
   const estadoSel=permit.length?`<select data-chg="estadoProy" data-id="${id}" aria-label="Cambiar estado"><option value="">Cambiar estado…</option>${ESTADOS.filter(e=>e!==p.estado).map(e=>`<option value="${e}" ${permit.includes(e)?'':'disabled'}>${e}${permit.includes(e)?'':' (no permitido)'}</option>`).join('')}</select>`:`<small class="muted">Estado final: no admite más cambios.</small>`;
   const totalMat=mats.reduce((s,m)=>s+(+m.cantidad||0)*(+m.precioUnit||0),0);
   let body='';
   if(ui.tab==='resumen')body=`<section class="card"><div class="headrow"><h3 style="margin:0">Datos del proyecto</h3><button class="btn ghost sm" data-act="editProyecto" data-id="${id}">Editar</button></div>
-   <div class="dgrid"><div><small>Cliente</small><span><a href="#cliente-${p.clienteId}">${esc(cliName(p.clienteId))}</a></span></div><div><small>Tipo de servicio</small><span>${esc(p.tipo)}</span></div><div><small>Fecha de inicio</small><span>${fd(p.fechaInicio)}</span></div>
+   <div class="dgrid"><div><small>Cliente</small><span>${cliLink}</span></div><div><small>Tipo de servicio</small><span>${esc(p.tipo)}</span></div><div><small>Fecha de inicio</small><span>${fd(p.fechaInicio)}</span></div>
    <div><small>Ubicación</small><span>${esc(p.ubicacion||'—')}</span></div><div><small>Área</small><span>${p.area!==''&&p.area!=null?esc(p.area)+' m²':'—'}</span></div><div><small>Avance</small><span>${progHtml(id)}</span></div>
    <div class="full"><small>Descripción</small><span>${esc(p.descripcion)}</span></div></div></section>
    <div class="grid2" style="margin-top:20px"><section class="card"><h3>Próximas actividades</h3>${acts.filter(a=>a.estado!=='Completada').slice(0,4).map(a=>actRow(a,false)).join('')||emptyBox('Sin actividades pendientes.')}</section>
    <section class="card"><h3>Relaciones</h3><div class="dgrid" style="grid-template-columns:1fr 1fr">
     <div><small>Proveedores</small><span>${provs.length?provs.map(x=>esc((byId('proveedores',x.proveedorId)||{}).nombre)+' '+badge(x.condicion,x.condicion==='Seleccionado'?'ok':'mute')).join('<br>'):'Ninguno'}</span></div>
     <div><small>Materiales y productos</small><span>${mats.length?mats.length+' elementos · '+money(totalMat):'Ninguno'}</span></div>
-    <div><small>Cotizaciones</small><span>${cots.length?cots.map(c=>esc(c.codigo)+' '+badge(c.estado,KIND_COT[c.estado])).join('<br>'):'Ninguna'}</span></div></div>
+    ${P().comercial?'':'<!--'}<div><small>Cotizaciones</small><span>${cots.length?cots.map(c=>esc(c.codigo)+' '+badge(c.estado,KIND_COT[c.estado])).join('<br>'):'Ninguna'}</span></div>${P().comercial?'':'-->'}</div>
     ${!provs.length&&!mats.length?`<p class="note" style="margin-top:12px">Este proyecto no tiene proveedores ni materiales asociados y sigue siendo válido.</p>`:''}</section></div>`;
   else if(ui.tab==='actividades')body=`<section class="card"><div class="headrow"><h3 style="margin:0">Actividades y entregables</h3><div style="display:flex;gap:8px;flex-wrap:wrap">
    ${PLAN[p.tipo]?`<button class="btn ghost sm" data-act="cargarPlan" data-id="${id}">Cargar plan de acción «${esc(p.tipo)}»</button>`:''}<button class="btn sm" data-act="nuevaAct" data-id="${id}">+ Nueva actividad</button></div></div>
@@ -487,7 +563,7 @@ function vProyecto(id){
     <td>${c.archivo?(c.tieneArchivo&&MODO==='api'?`<a href="/api/cotizaciones/${c.id}/archivo" target="_blank" rel="noopener"><small>Abrir documento: ${esc(c.archivo)}</small></a><br>`:`<small>Documento: ${esc(c.archivo)}</small><br>`):''}${c.enlace?`<a href="${esc(c.enlace)}" target="_blank" rel="noopener"><small>${esc(c.enlace)}</small></a>`:''}</td><td class="num"><button class="btn ghost sm" data-act="editCot" data-id="${c.id}">Editar</button></td></tr>`).join('')}</tbody></table></div>`
    :emptyBox('Sin cotizaciones registradas.')}
    <p class="note">El sistema solo guarda la referencia: la cotización se sigue elaborando en Canva. No calcula ni emite cotizaciones en esta versión.${MODO==='api'?' Los documentos adjuntos se guardan en la base de datos.':' En modo demostración solo se registra el nombre del archivo.'}</p></section>`;
-  return ph(esc(p.nombre),`<a href="#cliente-${p.clienteId}">${esc(cliName(p.clienteId))}</a> · ${esc(p.tipo)}`,
+  return ph(esc(p.nombre),`${cliLink} · ${esc(p.tipo)}`,
    `<div class="estado-box">${badge(p.estado,KIND_PROY[p.estado])} ${estadoSel}</div>`,`<a href="#proyectos">proyectos</a> / ficha`)+
   `<div class="tabs" role="tablist">${tabs.map(([k,l,n])=>`<button class="tab ${ui.tab===k?'on':''}" data-act="tab" data-id="${k}" role="tab">${l}${n!=null?`<span class="cnt">${n}</span>`:''}</button>`).join('')}</div>${body}`}
 
@@ -500,7 +576,7 @@ const actFields=()=>[
  {k:'entregable',label:'Es un entregable para el cliente',type:'checkbox'}];
 function formAct(a,pid){
   const p=byId('proyectos',a?a.proyectoId:pid);
-  if(!can()){if(a){ui.lastProj=a.proyectoId;ui.tab='actividades';location.hash='#proyecto-'+a.proyectoId}needEdit();return}
+  if(!canAct(p.id)){if(a&&puedeVer('proyectos')&&DB.proyectos.some(x=>x.id===p.id)){ui.lastProj=a.proyectoId;ui.tab='actividades';location.hash='#proyecto-'+a.proyectoId}else denegar();return}
   openForm({title:a?'Actividad':'Nueva actividad',intro:`Proyecto: <b>${esc(p.nombre)}</b> · ${esc(cliName(p.clienteId))}`,fields:actFields(),values:a||{estado:'Pendiente',responsable:'Gabriela Núñez'},submit:a?'Guardar cambios':'Registrar actividad',
    extra:a?`<button type="button" class="btn ghost" data-goto="#proyecto-${p.id}" data-tab="actividades">Abrir proyecto →</button>`:'',
    onSubmit:async v=>{
@@ -620,8 +696,8 @@ function vBuscar(){
   const q=norm(ui.q);
   if(!q)return ph('Búsqueda','Escriba un término en la barra superior.','');
   const has=(...xs)=>norm(xs.join(' ')).includes(q);
-  const L=DB.leads.filter(l=>!l.convertidoA&&has(l.nombre,l.telefono,l.correo,l.servicio,l.nacionalidad));
-  const C=DB.clientes.filter(c=>has(c.nombre,c.numId,c.telefono,c.correo,c.nacionalidad));
+  const L=!puedeVer('potenciales')?[]:DB.leads.filter(l=>!l.convertidoA&&has(l.nombre,l.telefono,l.correo,l.servicio,l.nacionalidad));
+  const C=!puedeVer('clientes')?[]:DB.clientes.filter(c=>has(c.nombre,c.numId,c.telefono,c.correo,c.nacionalidad));
   const P=DB.proyectos.filter(p=>has(p.nombre,p.tipo,p.ubicacion,p.descripcion,cliName(p.clienteId),p.estado));
   const V=DB.proveedores.filter(v=>has(v.nombre,v.contacto,v.categorias.join(' '),v.ofrece));
   const M=DB.materiales.filter(m=>has(m.nombre,m.modelo,m.categoria));
@@ -649,7 +725,7 @@ function vAcerca(){
    <li><b>Plan de acción por tipo de servicio:</b> actividades y plazos sugeridos a partir de la minuta 01 (tema 3); son editables y deben validarse.</li>
    <li><b>Cédula</b> de 9 dígitos; <b>pasaporte</b> de 6 a 20 caracteres alfanuméricos.</li>
    <li><b>Duplicados:</b> se considera la misma persona si coincide el nombre, el teléfono o el correo.</li>
-   <li><b>Roles:</b> Gabriela y María José tienen los mismos permisos; el usuario «consulta» existe solo para demostrar el control de acceso por rol.</li></ul></section>
+   <li><b>Roles:</b> la propietaria administra todo; la arquitecta consulta y modifica toda la información, como indicó Gabriela; el personal interno (Daniel Rojas, persona ficticia) solo ve los proyectos en los que participa y actualiza sus actividades.</li></ul></section>
   <section class="card"><h3>Fuera del alcance (ERS 2.11)</h3><ul><li>Generación de cotizaciones, notificaciones automáticas, archivo de fotos y renders, historial de cambios, eliminación de clientes.</li></ul></section></div>`}
 const notFound=t=>ph('No encontrado','El '+t+' solicitado no existe.','')+`<a class="btn ghost" href="#inicio">Volver al inicio</a>`;
 
@@ -659,14 +735,19 @@ function render(){
   if(!USER){app.innerHTML=vLogin();return}
   const h=(location.hash||'#inicio').slice(1);const i=h.indexOf('-');const view=i<0?h:h.slice(0,i),id=i<0?'':h.slice(i+1);
   const V={inicio:vInicio,potenciales:vPotenciales,clientes:vClientes,cliente:()=>vCliente(id),proyectos:vProyectos,proyecto:()=>vProyecto(id),calendario:vCalendario,proveedores:vProveedores,proveedor:()=>vProveedor(id),materiales:vMateriales,buscar:vBuscar,acerca:vAcerca};
-  app.innerHTML=shell(view,(V[view]||vInicio)());
+  const seccion={cliente:'clientes',proyecto:'proyectos',proveedor:'proveedores'}[view]||view;
+  const contenido=!puedeVer(seccion)&&(V[view]||VISTAS_COM.includes(view))?vNoAutorizado():V[view]?V[view]():vInicio();
+  app.innerHTML=shell(view,contenido);
+  aplicarPermisos(app);
 }
+/* CU-17, flujo alternativo 2: la sección no corresponde al rol */
+const vNoAutorizado=()=>ph('Acceso <b>no autorizado</b>',`Su rol (${esc(USER.rol)}) no tiene permiso para ver esta sección.`,'')+`<a class="btn ghost" href="#inicio">Volver al inicio</a>`;
 
 /* ================= Acciones ================= */
 async function simple(nombre,args,msg){const r=await op(nombre,args);if(r.errors){toast(Object.values(r.errors)[0],'err')}else if(!r.cancel&&msg)toast(typeof msg==='function'?msg(r):msg);render();return r}
 const ACT={
-  async logout(){if(MODO==='api')await http('DELETE','/sesion');USER=null;try{sessionStorage.removeItem(LS+'-u')}catch(e){}closeModal();render()},
-  reset(){if(!needEdit())return;confirmBox('Restablecer datos','Se borrarán los cambios y se cargarán de nuevo los datos de ejemplo'+(MODO==='api'?' en la base de datos.':' en este navegador.'),'Restablecer',async()=>{await simple('reiniciar',{},'Datos de ejemplo restablecidos.');ui.tab='resumen';location.hash='#inicio'})},
+  async logout(){if(MODO==='api')await http('DELETE','/sesion');USER=null;if(MODO==='demo')DB=DBT;try{sessionStorage.removeItem(LS+'-u')}catch(e){}closeModal();render()},
+  reset(){if(!esAdmin()){denegar();return}confirmBox('Restablecer datos','Se borrarán los cambios y se cargarán de nuevo los datos de ejemplo'+(MODO==='api'?' en la base de datos.':' en este navegador.'),'Restablecer',async()=>{await simple('reiniciar',{},'Datos de ejemplo restablecidos.');ui.tab='resumen';location.hash='#inicio'})},
   tab(id){ui.tab=id;render()},
   leadF(id){ui.leadF=id;render()},
   provCat(id){ui.provCat=id;render()},
@@ -679,7 +760,7 @@ const ACT={
   editCliente(id){formCliente(byId('clientes',id))},
   nuevoProyecto(id){formProyecto(null,id)},
   editProyecto(id){formProyecto(byId('proyectos',id))},
-  nuevaAct(id){if(!needEdit())return;formAct(null,id)},
+  nuevaAct(id){if(!canAct(id)){denegar();return}formAct(null,id)},
   verAct(id){formAct(byId('actividades',id))},
   cargarPlan(id){if(!needEdit())return;const p=byId('proyectos',id);const n=(PLAN[p.tipo]||[]).length;
     confirmBox('Cargar plan de acción',`Se agregarán ${n} actividades sugeridas para «${esc(p.tipo)}», con fechas calculadas desde el inicio del proyecto (${fd(p.fechaInicio)}). Podrá editarlas después.`,'Cargar plan',()=>simple('cargarPlan',{id},'Plan de acción cargado.'))},
@@ -700,7 +781,7 @@ const CHG={
   matCat(el){ui.matCat=el.value;render()},calResp(el){ui.calResp=el.value;render()},
   estadoProy(el){const nv=el.value;if(!nv)return;if(!needEdit()){render();return}
     simple('estadoProyecto',{id:el.dataset.id,estado:nv},r=>`Estado actualizado: ${r.anterior} → ${r.estado}.`)},
-  estadoAct(el){const a=byId('actividades',el.dataset.id);if(!needEdit()){render();return}simple('editarActividad',{...a,estado:el.value},'Estado de la actividad actualizado.')},
+  estadoAct(el){const a=byId('actividades',el.dataset.id);if(!canAct(a.proyectoId)){denegar();render();return}simple('editarActividad',{...a,estado:el.value},'Estado de la actividad actualizado.')},
   condProv(el){if(!needEdit()){render();return}simple('condicionProveedor',{id:el.dataset.id,condicion:el.value},'Condición actualizada: '+el.value+'.')}
 };
 
@@ -719,10 +800,10 @@ document.addEventListener('submit',async e=>{
     const fallo=m=>{f.querySelector('.msg').innerHTML=`<div class="errsum">${esc(m)}</div>`;btn.disabled=false};
     if(MODO==='api'){const r=await http('POST','/sesion',{usuario:f.u.value.trim(),clave:f.p.value});
       if(r.status!==200)return fallo(r.mensaje||'Usuario o contraseña incorrectos. Acceso rechazado.');
-      USER=r.usuario;await recargar();
+      USER=r.usuario;alIngresar();await recargar();
     }else{const u=USERS_DEMO.find(x=>x.u===f.u.value.trim().toLowerCase()&&x.p===f.p.value);
       if(!u)return fallo('Usuario o contraseña incorrectos. Acceso rechazado.');
-      USER=u;try{sessionStorage.setItem(LS+'-u',u.u)}catch(er){}}
+      USER=u;alIngresar();try{sessionStorage.setItem(LS+'-u',u.u)}catch(er){}}
     if(!location.hash)location.hash='#inicio';render();toast('Bienvenida, '+USER.nombre.split(' ')[0]+'.');return}
   if(e.target.matches('[data-search]')){e.preventDefault();ui.q=e.target.q.value.trim();if(location.hash==='#buscar')render();else location.hash='#buscar'}
 });
@@ -734,10 +815,11 @@ window.addEventListener('hashchange',()=>{closeModal();render();window.scrollTo(
   MODO=await detectarModo();
   if(MODO==='api'){
     const r=await http('GET','/sesion');
-    if(r.status===200){USER=r.usuario;await recargar()}
+    if(r.status===200){USER=r.usuario;alIngresar();await recargar()}
   }else{
     load();
     try{const su=sessionStorage.getItem(LS+'-u');if(su)USER=USERS_DEMO.find(u=>u.u===su)||null}catch(e){}
+    if(USER)alIngresar();
   }
   render();
 })();
@@ -944,11 +1026,12 @@ if (!NAV.some(([clave]) => clave === 'cotizador')) {
 const renderAnterior = render;
 
 render = function () {
-  if (USER && location.hash === '#cotizador') {
+  if (USER && location.hash === '#cotizador' && puedeVer('cotizador')) {
     $('#app').innerHTML = shell(
       'cotizador',
       vCotizador()
     );
+    aplicarPermisos($('#app'));
   } else {
     renderAnterior();
   }

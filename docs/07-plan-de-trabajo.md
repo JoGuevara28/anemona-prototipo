@@ -9,7 +9,8 @@
 | 3. Prototipo | Interfaz (`prototipo/`) que cubre RF-01 a RF-17 | ✅ Hecho |
 | 3b. Base de datos | Servidor Python + SQLite con API REST, sesiones y reglas en el servidor (`servidor/`) | ✅ Hecho |
 | 3c. Identidad visual | Interfaz con el estilo de Anémona (`docs/09-guia-de-estilo.md`) | ✅ Hecho |
-| 4. Verificación | Pruebas de aceptación (dos modos) y de API y base de datos | ✅ 59/59 y 29/29 |
+| 3d. Roles | Tres roles con vistas y permisos distintos (`docs/10-roles-y-permisos.md`) | ✅ Hecho |
+| 4. Verificación | Pruebas de aceptación (dos modos) y de API y base de datos | ✅ 65/65 y 34/34 |
 | 5. Documentación | Trazabilidad, modelo de datos, arquitectura, supuestos, guía de demo, plan de pruebas | ✅ Hecho |
 | 6. Validación | Reunión con Gabriela: supuestos S-01 a S-12 y prueba de usabilidad (RNF-01) | ⏸ Más adelante (por ahora el prototipo solo lo usa el equipo) |
 | 7. Ajustes | Cambios solicitados en la validación y actualización del ERS (v1.1) | ⏳ Pendiente |
@@ -28,7 +29,8 @@ Cada integrante es responsable de conocer a fondo sus módulos, presentarlos y v
 
 - [ ] Revisar juntos el prototipo completo con la guía de demostración.
 - [ ] Cada integrante corre el prototipo en su computadora (`python servidor/servidor.py`) y recorre sus módulos.
-- [ ] Mientras no haya validación con Anémona, el equipo usa las cuentas `gabriela` y `mariajose` para simular los roles del caso.
+- [ ] Mientras no haya validación con Anémona, el equipo usa las cuentas `gabriela`, `mariajose` y `colaborador` para simular los roles del caso.
+- [ ] Decidir qué hacer con el Cotizador (commit `35a223c`): formalizarlo como cambio de alcance o quitarlo, porque el ERS deja fuera el cálculo de cotizaciones.
 - [ ] *(Más adelante)* Reunión de validación con Gabriela: tabla de supuestos, empezando por **S-04**, y prueba de usabilidad RNF-01; registrar el resultado en `04-supuestos-y-decisiones.md`.
 - [ ] Ajustar el prototipo según los cambios solicitados y volver a ejecutar las pruebas.
 - [ ] Actualizar el ERS a v1.1 con los supuestos confirmados (estados, transiciones y plan por servicio).
