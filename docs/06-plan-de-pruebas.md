@@ -69,13 +69,17 @@ El script de aceptación imprime el resultado de cada prueba y actualiza [`prueb
 | PA-31 | RF-17 · solo servidor | El servidor rechaza acciones fuera del rol y no envía al cliente datos internos ni de otros clientes |
 | PA-32 | RF-17 · roles | Cada rol ve un menú, un inicio y opciones de administración distintos |
 | PA-33 | SC-01 · CU-19 | El cliente solo ve sus proyectos: estado, avance, entregables y cotización, sin costos ni proveedores |
+| PA-35 | SC-02 · CU-20 | Un render 360° válido aparece en la sección y en el proyecto; una foto que no es 2:1 se rechaza y conserva el título |
+| PA-36 | SC-02 · CU-21 | El visor gira a los lados y arriba-abajo al arrastrar, limita la vista vertical y Restablecer vuelve al inicio |
+| PA-37 | SC-02 · permisos | El cliente no ve renders (menú, sección y API) |
 | PA-34 | SC-01 · CU-18 | La arquitecta da acceso a un cliente, este ve solo lo suyo y, al desactivarlo, ya no puede ingresar |
 
-## Pruebas de API y base de datos (37)
+## Pruebas de API y base de datos (45)
 
 | Grupo | Qué verifican |
 |---|---|
 | Acceso y roles | Sin sesión → 401; contraseña incorrecta; cookie HttpOnly; cierre de sesión; contraseñas cifradas; solo la propietaria administra; una base con esquema antiguo se actualiza sola |
+| Renders 360° (SC-02) | Render válido se guarda y se descarga igual; proporción 2:1 obligatoria; se verifica el contenido real (no la extensión); tamaño máximo; lectura de dimensiones de JPG; editar y eliminar; el cliente no accede; la base rechaza renders que no son 2:1 |
 | Acceso de clientes (SC-01) | El cliente solo recibe sus proyectos, entregables y cotizaciones; su avance coincide con el del estudio; no modifica nada (403); no descarga cotizaciones ajenas; dar y desactivar acceso (la sesión abierta se cierra); validaciones (usuario repetido, contraseña corta, una cuenta por cliente); la base exige que toda cuenta de cliente apunte a un cliente |
 | Personas | Medio de contacto obligatorio; duplicados; conversión sin duplicar y exigiendo contrato; identificación única aunque cambie el formato; formato de cédula |
 | Proyectos | Cliente inexistente; tipo fuera del catálogo; plan de acción; proyecto mínimo válido; transiciones (incluye estados finales); área negativa |
@@ -90,4 +94,6 @@ El prototipo se considera listo para validar con el cliente cuando se cumplen do
 - **todas** las pruebas automáticas están aprobadas;
 - no hay errores de JavaScript.
 
-Estado actual: **65/65 ejecuciones de aceptación** y **37/37 pruebas de API** aprobadas.
+Estado actual: **71/71 ejecuciones de aceptación** y **45/45 pruebas de API** aprobadas.
+
+> El visor 360° usa WebGL. En las pruebas se usa WebGL por software (SwiftShader), así que funcionan también en computadoras sin tarjeta gráfica.

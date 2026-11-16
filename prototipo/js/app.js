@@ -44,7 +44,7 @@ const ROLES_DEMO={
  colaborador:['Personal interno',0,'actividades',0,'participa'],  // ERS §2.9; sin cuenta de ejemplo
  cliente:['Cliente',0,'nada',0,'propios']                          // SC-01: solo consulta sus proyectos
 };
-const VISTAS_BASE=['inicio','proyectos','calendario','proveedores','materiales','buscar','acerca'],VISTAS_COM=['potenciales','clientes','cotizador'];
+const VISTAS_BASE=['inicio','proyectos','calendario','proveedores','materiales','buscar','acerca'],VISTAS_COM=['potenciales','clientes','cotizador','renders'];  // VISTAS_COM: solo del estudio
 function permisosDe(c){const [,com,ed,adm,alc]=ROLES_DEMO[c];return {vistas:alc==='propios'?['inicio','proyectos']:VISTAS_BASE.concat(com?VISTAS_COM:[]),comercial:!!com,edita:ed,admin:!!adm,alcance:alc}}
 /* Usuarios del modo demostración (en modo servidor se validan contra la base, con contraseña cifrada) */
 const USERS_DEMO=[
@@ -52,6 +52,8 @@ const USERS_DEMO=[
  {u:'mariajose',p:'anemona2026',nombre:'María José',ini:'MJ',rolCodigo:'arquitecta'}
 ].map(u=>({...u,rol:ROLES_DEMO[u.rolCodigo][0],permisos:permisosDe(u.rolCodigo),edit:ROLES_DEMO[u.rolCodigo][2]==='todo'}));
 const MAX_ARCHIVO=10*1024*1024;
+const MAX_RENDER=25*1024*1024;  // RN-06
+const RENDER_MEM={};           // modo demostración: archivos subidos en esta sesión (no se guardan en el navegador por su tamaño)
 
 /* ================= Utilidades ================= */
 const $=s=>document.querySelector(s);
@@ -106,7 +108,7 @@ async function recargar(){
   if(r.status===401){USER=null;return}
   if(r.status===200){DB=r.datos;aplicarCatalogos(r.catalogos)}
 }
-function load(){try{const s=localStorage.getItem(LS);if(s){DBT=JSON.parse(s)}}catch(e){}if(!DBT)DBT=seed();DB=DBT}
+function load(){try{const s=localStorage.getItem(LS);if(s){DBT=JSON.parse(s)}}catch(e){}if(!DBT)DBT=seed();if(!DBT.renders)DBT.renders=[];DB=DBT}
 function save(){if(MODO!=='demo')return;try{localStorage.setItem(LS,JSON.stringify(DBT))}catch(e){}}
 /* Misma regla que logica.filtrar_por_rol en el servidor */
 function filtrarPorRol(d,u){
@@ -122,7 +124,7 @@ function filtrarPorRol(d,u){
     v.proyectos=d.proyectos.filter(x=>part.has(x.id));v.actividades=d.actividades.filter(en);v.provProy=d.provProy.filter(en);v.matProy=d.matProy.filter(en);v.cotizaciones=d.cotizaciones.filter(en);
   }
   if(!p.comercial){const vis=new Set(v.proyectos.map(x=>x.clienteId));
-    v.clientes=d.clientes.filter(c=>vis.has(c.id)).map(c=>({id:c.id,nombre:c.nombre}));v.leads=[];v.cotizaciones=[]}
+    v.clientes=d.clientes.filter(c=>vis.has(c.id)).map(c=>({id:c.id,nombre:c.nombre}));v.leads=[];v.cotizaciones=[];v.renders=[]}
   return v;
 }
 /* Usuario de una cuenta de cliente (modo demostración) */
@@ -183,6 +185,10 @@ const OPS={
     if(DB.accesos.some(x=>x.clienteId===v.id))return err('usuario','Este cliente ya tiene una cuenta. Puede activarla o desactivarla.');
     if(DB.accesos.some(x=>x.usuario===usu)||USERS_DEMO.some(x=>x.u===usu))return err('usuario','Ese nombre de usuario ya está en uso.');
     DB.accesos.push({clienteId:v.id,usuario:usu,clave:v.clave,activo:true});return {}}},
+  subirRender:{api:v=>['POST','/proyectos/'+v.proyectoId+'/renders',{titulo:v.titulo,descripcion:v.descripcion,archivo:v.archivo,archivoDatos:v.archivoDatos,miniatura:v.miniatura}],
+    local:v=>{const id=uid('r');RENDER_MEM[id]=v.dataUrl;DB.renders.unshift({id,proyectoId:v.proyectoId,titulo:v.titulo,descripcion:v.descripcion,archivo:v.archivo,ancho:v.ancho,alto:v.alto,tamano:v.tamano,subidoPor:USER.nombre,creado:today(),tieneMini:true,miniUrl:'data:image/jpeg;base64,'+v.miniatura});return {id}}},
+  editarRender:{api:v=>['PUT','/renders/'+v.id,{titulo:v.titulo,descripcion:v.descripcion}],local:v=>{Object.assign(byId('renders',v.id),{titulo:v.titulo,descripcion:v.descripcion});return {}}},
+  eliminarRender:{api:v=>['DELETE','/renders/'+v.id],local:v=>{DB.renders=DB.renders.filter(r=>r.id!==v.id);delete RENDER_MEM[v.id];return {}}},
   cambiarAcceso:{api:v=>['PUT','/clientes/'+v.id+'/acceso',{activo:v.activo}],local:v=>{const x=DB.accesos.find(a=>a.clienteId===v.id);x.activo=v.activo;return {}}}
 };
 function pick(o,keys){const r={};keys.split(' ').forEach(k=>{if(k in o)r[k]=o[k]});return r}
@@ -226,6 +232,8 @@ function seed(){
   d.cotizaciones=[{id:'q1',proyectoId:'p1',codigo:'COT-2026-014',fecha:addDays(T,-28),monto:1800000,estado:'Aceptada',enlace:'https://www.canva.com/',archivo:''}];
   /* Cuentas de clientes (SC-01). En modo demostración la contraseña se guarda tal cual; en el servidor, cifrada. */
   d.accesos=[{clienteId:'c1',usuario:'cliente',clave:'cliente2026',activo:true}];
+  /* Render 360° de ejemplo (SC-02): sala ficticia generada por herramientas/generar_render_ejemplo.py */
+  d.renders=[{id:'r1',proyectoId:'p1',titulo:'Sala — propuesta 360°',descripcion:'Render de ejemplo: sala con ventana al jardín y nichos en arco.',archivo:'sala-360.jpg',ancho:2048,alto:1024,tamano:100000,subidoPor:'María José',creado:addDays(T,-3),tieneMini:true,ejemplo:true}];
   return d;
 }
 
@@ -247,7 +255,7 @@ function permitido(accion,id){
   if(req==='actAct')return canAct((byId('actividades',id)||{}).proyectoId);
   return can();
 }
-const ACCIONES_DE_NAVEGACION=new Set(['tab','leadF','provCat','pfClear','calMove','logout','editLead','verAct']);
+const ACCIONES_DE_NAVEGACION=new Set(['tab','leadF','provCat','pfClear','calMove','logout','editLead','verAct','verRender']);
 function aplicarPermisos(raiz){
   raiz.querySelectorAll('button[data-act]').forEach(b=>{const a=b.dataset.act;if(!ACCIONES_DE_NAVEGACION.has(a)&&!permitido(a,b.dataset.id))b.remove();else if(a==='verAct'&&!permitido(a,b.dataset.id))b.remove()});
   raiz.querySelectorAll('tr[data-act="editMat"]').forEach(t=>{if(!can()){t.removeAttribute('data-act');t.classList.remove('click')}});
@@ -262,7 +270,7 @@ function alIngresar(){ui.calResp=USER.rolCodigo==='propietaria'?'':USER.nombre;v
 /* ================= Modal, formularios y mensajes ================= */
 function toast(msg,kind){const t=document.createElement('div');t.className='toast '+(kind||'ok');t.textContent=msg;$('#toasts').appendChild(t);setTimeout(()=>t.classList.add('out'),3400);setTimeout(()=>t.remove(),3900)}
 function modal(html,wide){$('#modal-root').innerHTML=`<div class="overlay"><div class="dialog ${wide?'wide':''}" role="dialog" aria-modal="true"><button class="x" data-close aria-label="Cerrar">×</button>${html}</div></div>`;return $('#modal-root .dialog')}
-function closeModal(){$('#modal-root').innerHTML=''}
+function closeModal(){if(typeof VISOR!=='undefined'&&VISOR){VISOR.destruir();VISOR=null}$('#modal-root').innerHTML=''}
 function confirmBox(title,msg,yes,onYes){const d=modal(`<h2>${esc(title)}</h2><p>${msg}</p><div class="actions"><button class="btn ghost" data-close>Cancelar</button><button class="btn danger" id="cy">${esc(yes)}</button></div>`);d.querySelector('#cy').onclick=async e=>{e.target.disabled=true;await onYes();closeModal()}}
 function infoBox(title,msg,btns){modal(`<h2>${esc(title)}</h2><p>${msg}</p><div class="actions">${btns||'<button class="btn" data-close>Entendido</button>'}</div>`)}
 
@@ -377,7 +385,7 @@ function vLogin(){
    <small class="muted">Cada rol ve una aplicación distinta: la propietaria administra todo, la arquitecta trabaja sobre todos los proyectos y el cliente solo consulta el avance de sus propios proyectos.</small></div>
   </form></div></div>`}
 
-const NAV=[['inicio','Inicio'],['potenciales','Potenciales clientes'],['clientes','Clientes'],['proyectos','Proyectos'],['calendario','Calendario'],['proveedores','Proveedores'],['materiales','Materiales'],['acerca','Acerca del prototipo']];
+const NAV=[['inicio','Inicio'],['potenciales','Potenciales clientes'],['clientes','Clientes'],['proyectos','Proyectos'],['calendario','Calendario'],['renders','Renders 360°'],['proveedores','Proveedores'],['materiales','Materiales'],['acerca','Acerca del prototipo']];
 const PARENT={cliente:'clientes',proyecto:'proyectos',proveedor:'proveedores',buscar:''};
 function shell(view,content){
   const act=PARENT[view]!==undefined?PARENT[view]:view;
@@ -579,8 +587,9 @@ function vProyecto(id){
   if(esCliente())return vProyectoCliente(p);
   if(ui.lastProj!==id){ui.tab='resumen';ui.lastProj=id}
   const acts=projActs(id),provs=DB.provProy.filter(x=>x.proyectoId===id),mats=DB.matProy.filter(x=>x.proyectoId===id),cots=DB.cotizaciones.filter(x=>x.proyectoId===id);
-  const tabs=[['resumen','Resumen',null],['actividades','Actividades',acts.length],['proveedores','Proveedores',provs.length],['materiales','Materiales y productos',mats.length],['cotizaciones','Cotizaciones',cots.length]].filter(([k])=>k!=='cotizaciones'||P().comercial);
-  if(ui.tab==='cotizaciones'&&!P().comercial)ui.tab='resumen';
+  const rends=(DB.renders||[]).filter(r=>r.proyectoId===id);
+  const tabs=[['resumen','Resumen',null],['actividades','Actividades',acts.length],['proveedores','Proveedores',provs.length],['materiales','Materiales y productos',mats.length],['cotizaciones','Cotizaciones',cots.length],['renders','Renders 360°',rends.length]].filter(([k])=>(k!=='cotizaciones'||P().comercial)&&(k!=='renders'||puedeVer('renders')));
+  if((ui.tab==='cotizaciones'&&!P().comercial)||(ui.tab==='renders'&&!puedeVer('renders')))ui.tab='resumen';
   const cliLink=puedeVer('clientes')?`<a href="#cliente-${p.clienteId}">${esc(cliName(p.clienteId))}</a>`:esc(cliName(p.clienteId));
   const permit=TRANS[p.estado]||[];
   const estadoSel=permit.length?`<select data-chg="estadoProy" data-id="${id}" aria-label="Cambiar estado"><option value="">Cambiar estado…</option>${ESTADOS.filter(e=>e!==p.estado).map(e=>`<option value="${e}" ${permit.includes(e)?'':'disabled'}>${e}${permit.includes(e)?'':' (no permitido)'}</option>`).join('')}</select>`:`<small class="muted">Estado final: no admite más cambios.</small>`;
@@ -614,6 +623,8 @@ function vProyecto(id){
     <td class="num"><button class="btn ghost sm" data-act="editMatProy" data-id="${x.id}">Editar</button> <button class="btn ghost sm" data-act="quitarMat" data-id="${x.id}">Quitar</button></td></tr>`}).join('')}</tbody>
     <tfoot><tr><td colspan="4">Total registrado</td><td class="num">${money(totalMat)}</td><td></td></tr></tfoot></table></div>`
    :emptyBox('Sin materiales asociados. No todos los servicios los requieren.')}</section>`;
+  else if(ui.tab==='renders')body=`<section class="card"><div class="headrow"><h3 style="margin:0">Renders 360°</h3><button class="btn sm" data-act="subirRender" data-id="${id}">+ Subir render 360°</button></div>
+   ${galeriaRenders(rends,false)}<p class="note">Suba renders exportados como <b>panorama 360°</b> (imagen el doble de ancha que de alta) desde Enscape, V-Ray, Lumion o SketchUp. Abra uno para mirar alrededor.</p></section>`;
   else body=`<section class="card"><div class="headrow"><h3 style="margin:0">Referencias de cotización</h3><button class="btn sm" data-act="nuevaCot" data-id="${id}">+ Registrar referencia</button></div>
    ${cots.length?`<div class="tblwrap"><table class="tbl"><thead><tr><th>Código</th><th>Fecha</th><th class="num">Monto</th><th>Estado</th><th>Documento / enlace</th><th></th></tr></thead><tbody>
    ${cots.map(c=>`<tr><td><b>${esc(c.codigo)}</b></td><td>${fd(c.fecha)}</td><td class="num">${money(c.monto)}</td><td>${badge(c.estado,KIND_COT[c.estado])}</td>
@@ -676,6 +687,69 @@ function formCot(pid,c){
     if(file&&MODO==='api'){v.archivoDatos=await leerBase64(file);v.archivoTipo=file.type||''}
     const r=c?await op('editarCotizacion',{...v,id:c.id}):await op('crearCotizacion',{...v,proyectoId:pid});
     return r.errors||r.cancel?r:{msg:c?'Referencia actualizada.':'Referencia de cotización registrada.'}}});
+}
+
+/* ---------- Renders 360° (SC-02 · RF-20, RF-21) ---------- */
+function urlRender(r,mini){
+  if(MODO==='api')return `/api/renders/${r.id}/${mini?'miniatura':'archivo'}`;
+  if(r.ejemplo)return mini?RENDER_EJEMPLO_MINI:RENDER_EJEMPLO_360;
+  return mini?(r.miniUrl||null):(RENDER_MEM[r.id]||null);
+}
+const tamanoMB=b=>b>=1048576?(b/1048576).toFixed(1)+' MB':Math.max(1,Math.round(b/1024))+' KB';
+function galeriaRenders(lista,conProyecto){
+  if(!lista.length)return emptyBox('Todavía no hay renders 360°.');
+  return `<div class="rgal">${lista.map(r=>{const p=byId('proyectos',r.proyectoId)||{};const mini=urlRender(r,true);
+    return `<button class="rcard" data-act="verRender" data-id="${r.id}" aria-label="Abrir ${esc(r.titulo)}">
+      <span class="rthumb">${mini?`<img src="${mini}" alt="" loading="lazy">`:''}<span class="r360">360°</span></span>
+      <span class="rinfo"><b>${esc(r.titulo)}</b>${conProyecto?`<small>${esc(p.nombre||'')}</small>`:''}<small class="muted">${esc(r.subidoPor)} · ${fd(r.creado)}</small></span></button>`}).join('')}</div>`}
+function vRenders(){
+  const f=ui.rendProy||'';const lista=(DB.renders||[]).filter(r=>!f||r.proyectoId===f);
+  return ph('Renders <b>360°</b>','Renders panorámicos de los proyectos. Ábralos para mirar alrededor como si estuviera dentro del espacio.',`<button class="btn" data-act="subirRender">+ Subir render 360°</button>`)+
+  `<div class="filters"><select data-chg="rendProy" aria-label="Filtrar por proyecto"><option value="">Todos los proyectos</option>${DB.proyectos.map(p=>opt([p.id,p.nombre],f)).join('')}</select><span class="muted" style="margin-left:auto">${lista.length} render(s)</span></div>
+  ${galeriaRenders(lista,true)}
+  <p class="note"><b>Formato:</b> imagen JPG o PNG exportada como <b>panorama 360°</b> (el doble de ancha que de alta, por ejemplo 4096 × 2048), de hasta 25 MB. El sistema no crea renders: guarda y muestra los que se hacen en Enscape, V-Ray, Lumion o SketchUp.</p>`}
+function leerImagen(file){return new Promise((ok,ko)=>{const u=URL.createObjectURL(file);const im=new Image();im.onload=()=>ok({im,u});im.onerror=()=>{URL.revokeObjectURL(u);ko(new Error('imagen'))};im.src=u})}
+function formRender(pid){
+  if(!needEdit())return;
+  if(!DB.proyectos.length){infoBox('No hay proyectos','Registre primero un proyecto para asociarle renders.');return}
+  const f=[...(pid?[]:[{k:'proyectoId',label:'Proyecto',type:'select',req:true,full:true,options:DB.proyectos.map(p=>[p.id,p.nombre])}]),
+   {k:'titulo',label:'Título',req:true,full:true,ph:'Sala — propuesta 1'},
+   {k:'descripcion',label:'Descripción',type:'textarea',full:true},
+   {k:'archivo',label:'Render 360° (JPG o PNG)',type:'file',req:true,full:true,accept:'.jpg,.jpeg,.png',help:'Exportado como panorama 360°: el doble de ancho que de alto (por ejemplo 4096 × 2048). Máximo 25 MB.',
+    check:(val,v)=>{if(val&&!/\.(jpe?g|png)$/i.test(val))return 'Formato no permitido. Use una imagen JPG o PNG.';if(v.archivo__file&&v.archivo__file.size>MAX_RENDER)return 'El archivo supera el máximo de 25 MB.';return ''}}];
+  openForm({title:'Subir render 360°',intro:pid?`Proyecto: <b>${esc(byId('proyectos',pid).nombre)}</b>`:'',fields:f,values:{proyectoId:pid||ui.rendProy||''},submit:'Subir render',wide:true,
+   onSubmit:async v=>{const file=v.archivo__file;delete v.archivo__file;
+    let lectura;try{lectura=await leerImagen(file)}catch(e){return {errors:{archivo:'El archivo no es una imagen JPG o PNG válida.'}}}
+    const {im,u}=lectura;const w=im.naturalWidth,h=im.naturalHeight;
+    if(Math.abs(w/h-2)>0.04){URL.revokeObjectURL(u);return {errors:{archivo:`El render debe ser 360° (proporción 2:1, por ejemplo 4096 × 2048). Esta imagen mide ${w} × ${h}. Expórtelo como «panorama 360°» desde su programa de render.`}}}
+    const cv=document.createElement('canvas');cv.width=512;cv.height=256;cv.getContext('2d').drawImage(im,0,0,512,256);URL.revokeObjectURL(u);
+    const datos={...v,proyectoId:pid||v.proyectoId,ancho:w,alto:h,tamano:file.size,miniatura:cv.toDataURL('image/jpeg',0.78).split(',')[1]};
+    if(MODO==='api')datos.archivoDatos=await leerBase64(file);else datos.dataUrl=await new Promise(ok=>{const r=new FileReader();r.onload=()=>ok(r.result);r.readAsDataURL(file)});
+    const r=await op('subirRender',datos);if(r.errors||r.cancel)return r;
+    ui.ultimoRender=r.id;return {msg:'Render subido. Ábralo para mirar alrededor.'}}});
+}
+let VISOR=null;
+function verRender(id){
+  const r=byId('renders',id);if(!r)return;const p=byId('proyectos',r.proyectoId)||{};const url=urlRender(r,false);
+  const d=modal(`<h2>${esc(r.titulo)}</h2><p class="intro">${esc(p.nombre||'')} · subido por ${esc(r.subidoPor)} el ${fd(r.creado)} · ${r.ancho} × ${r.alto} px${r.tamano?' · '+tamanoMB(r.tamano):''}</p>
+   <div class="visor" id="visor"><div class="visor-ayuda">Arrastre para mirar alrededor · rueda o +/− para acercar · flechas del teclado</div>
+    <div class="visor-ctrl"><button class="vbtn" data-v="menos" aria-label="Alejar">−</button><button class="vbtn" data-v="mas" aria-label="Acercar">+</button><button class="vbtn txt" data-v="reset">Restablecer</button><button class="vbtn txt" data-v="full">Pantalla completa</button></div>
+    <div class="visor-msg" hidden></div></div>
+   ${r.descripcion?`<p style="margin:14px 0 0">${esc(r.descripcion)}</p>`:''}
+   <div class="actions" style="margin-top:14px"><span class="left">${url&&MODO==='api'?`<a class="btn ghost sm" href="${url}" target="_blank" rel="noopener">Abrir imagen original</a>`:''}</span>
+    ${can()?`<button class="btn ghost sm" data-act="editarRender" data-id="${r.id}">Editar</button><button class="btn ghost sm" data-act="eliminarRender" data-id="${r.id}">Eliminar</button>`:''}<button class="btn sm" data-close>Cerrar</button></div>`,true);
+  d.classList.add('dialog-visor');
+  const cont=d.querySelector('#visor');const msg=t=>{const m=cont.querySelector('.visor-msg');m.hidden=false;m.textContent=t};
+  if(!url){msg('En modo demostración, los renders subidos solo se pueden ver hasta que se recarga la página. Con el servidor quedan guardados en la base de datos.');return}
+  VISOR=new Visor360(cont,url,{alError:msg});
+  cont.querySelector('.visor-ctrl').addEventListener('click',e=>{const b=e.target.closest('[data-v]');if(!b||!VISOR)return;
+    ({menos:()=>VISOR.zoom(1.15),mas:()=>VISOR.zoom(0.87),reset:()=>VISOR.restablecer(),full:()=>VISOR.pantallaCompleta()})[b.dataset.v]()});
+  if(VISOR.canvas)VISOR.canvas.focus();
+}
+function formEditarRender(r){
+  if(!needEdit())return;
+  openForm({title:'Editar render',fields:[{k:'titulo',label:'Título',req:true,full:true},{k:'descripcion',label:'Descripción',type:'textarea',full:true}],values:r,
+   onSubmit:async v=>{const x=await op('editarRender',{...v,id:r.id});return x.errors||x.cancel?x:{msg:'Render actualizado.'}}});
 }
 
 /* ---------- Proveedores RF-09 ---------- */
@@ -791,7 +865,7 @@ function render(){
   const app=$('#app');
   if(!USER){app.innerHTML=vLogin();return}
   const h=(location.hash||'#inicio').slice(1);const i=h.indexOf('-');const view=i<0?h:h.slice(0,i),id=i<0?'':h.slice(i+1);
-  const V={inicio:vInicio,potenciales:vPotenciales,clientes:vClientes,cliente:()=>vCliente(id),proyectos:vProyectos,proyecto:()=>vProyecto(id),calendario:vCalendario,proveedores:vProveedores,proveedor:()=>vProveedor(id),materiales:vMateriales,buscar:vBuscar,acerca:vAcerca};
+  const V={renders:vRenders,inicio:vInicio,potenciales:vPotenciales,clientes:vClientes,cliente:()=>vCliente(id),proyectos:vProyectos,proyecto:()=>vProyecto(id),calendario:vCalendario,proveedores:vProveedores,proveedor:()=>vProveedor(id),materiales:vMateriales,buscar:vBuscar,acerca:vAcerca};
   const seccion={cliente:'clientes',proyecto:'proyectos',proveedor:'proveedores'}[view]||view;
   const contenido=!puedeVer(seccion)&&(V[view]||VISTAS_COM.includes(view))?vNoAutorizado():V[view]?V[view]():vInicio();
   app.innerHTML=shell(view,contenido);
@@ -814,6 +888,10 @@ const ACT={
   editLead(id){const l=byId('leads',id);if(l.convertidoA){location.hash='#cliente-'+l.convertidoA;return}if(!can()){infoBox(l.nombre,`${esc(l.servicio)} · ${badge(l.estado,KIND_LEAD[l.estado])}<br>${esc(l.telefono||'')} ${esc(l.correo||'')}<br><small class="muted">${esc(l.notas||'')}</small>`);return}formLead(l)},
   convertir(id){formConvertir(byId('leads',id))},
   nuevoCliente(){formCliente(null)},
+  subirRender(id){formRender(id||null)},
+  verRender(id){verRender(id)},
+  editarRender(id){formEditarRender(byId('renders',id))},
+  eliminarRender(id){if(!needEdit())return;const r=byId('renders',id);confirmBox('Eliminar render',`¿Eliminar «${esc(r.titulo)}»? Esta acción no se puede deshacer.`,'Eliminar',()=>simple('eliminarRender',{id},'Render eliminado.'))},
   darAcceso(id){formAcceso(byId('clientes',id))},
   cambiarAcceso(id){if(!needEdit())return;const a=DB.accesos.find(x=>x.clienteId===id);const c=byId('clientes',id);
     if(a.activo)confirmBox('Desactivar acceso',`${esc(c.nombre)} ya no podrá ingresar y se cerrará su sesión si está abierta.`,'Desactivar',()=>simple('cambiarAcceso',{id,activo:false},'Acceso desactivado.'));
@@ -839,7 +917,7 @@ const ACT={
 };
 const CHG={
   pfTipo(el){ui.pf.tipo=el.value;render()},pfEstado(el){ui.pf.estado=el.value;render()},pfQ(el){ui.pf.q=el.value;render()},
-  matCat(el){ui.matCat=el.value;render()},calResp(el){ui.calResp=el.value;render()},
+  matCat(el){ui.matCat=el.value;render()},rendProy(el){ui.rendProy=el.value;render()},calResp(el){ui.calResp=el.value;render()},
   estadoProy(el){const nv=el.value;if(!nv)return;if(!needEdit()){render();return}
     simple('estadoProyecto',{id:el.dataset.id,estado:nv},r=>`Estado actualizado: ${r.anterior} → ${r.estado}.`)},
   estadoAct(el){const a=byId('actividades',el.dataset.id);if(!canAct(a.proyectoId)){denegar();render();return}simple('editarActividad',{...a,estado:el.value},'Estado de la actividad actualizado.')},

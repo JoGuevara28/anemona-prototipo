@@ -67,11 +67,19 @@ Luego abrir **Anteproyecto casa de playa**: no tiene proveedores ni materiales y
 5. Salir, entrar como `mariajose`, abrir el cliente **Andrew Solís** y pulsar **Dar acceso** (usuario `andrew`, contraseña `andrew2026`). Entrar como `andrew`: ve solo sus dos proyectos. Volver como staff y **desactivar** el acceso: Andrew ya no puede ingresar (SC-01, CU-18).
 3. (Opcional) Abrir `servidor/db/anemona.db` con DB Browser for SQLite y mostrar las tablas.
 
-### 10. Cierre (1 min)
+### 10. Renders 360° — SC-02 (2 min)
+1. Como `gabriela` o `mariajose`, abrir **Renders 360°** en el menú y luego la sala de ejemplo.
+2. **Arrastrar** a los lados y arriba-abajo para mirar alrededor; usar la rueda para acercar y **Restablecer** para volver al inicio. Probar **Pantalla completa**.
+3. Pulsar **+ Subir render 360°** con una foto normal: el sistema explica que debe ser 360° (2:1) y conserva el título. Con un render 360° real, aparece en la galería y en la pestaña del proyecto.
+4. Como `cliente`, mostrar que Renders no aparece en su menú.
+
+> **Qué decir:** «La minuta mencionó el almacenamiento de renders como etapa posterior. Lo tramitamos como solicitud de cambio: el sistema no produce renders, solo los guarda y permite recorrerlos.»
+
+### 11. Cierre (1 min)
 Mostrar **Acerca del prototipo** (tecnología y supuestos) y la matriz de trazabilidad en `docs/02-matriz-de-trazabilidad.md` y mencionar las pruebas automáticas:
 
-- **65 ejecuciones de pruebas de aceptación** (34 pruebas en dos modos);
-- **34 pruebas de API y base de datos**.
+- **71 ejecuciones de pruebas de aceptación** (37 pruebas en dos modos);
+- **45 pruebas de API y base de datos**.
 
 Todas aprobadas (`pruebas/resultados.md`).
 

@@ -10,6 +10,8 @@ Uso:
 """
 import base64
 import json
+import struct
+import zlib
 import sqlite3
 import sys
 import tempfile
@@ -24,6 +26,17 @@ RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ / "servidor"))
 import logica as L  # noqa: E402
 import servidor as S  # noqa: E402
+
+
+def png(ancho, alto):
+    fila = b"\x00" + b"\xb4\x96\x78" * ancho
+    bloque = lambda t, d: struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)  # noqa: E731
+    return (b"\x89PNG\r\n\x1a\n" + bloque(b"IHDR", struct.pack(">IIBBBBB", ancho, alto, 8, 2, 0, 0, 0))
+            + bloque(b"IDAT", zlib.compress(fila * alto)) + bloque(b"IEND", b""))
+
+
+def b64(datos):
+    return base64.b64encode(datos).decode()
 
 
 class Cliente:
@@ -158,6 +171,7 @@ class PruebasAPI(unittest.TestCase):
         L.crear_bd(vieja)
         con = L.conectar(vieja)
         self.assertEqual(con.execute("SELECT count(*) FROM rol").fetchone()[0], 4)
+        self.assertEqual(con.execute("SELECT count(*) FROM render").fetchone()[0], 1)
         con.close()
         self.assertTrue(vieja.with_suffix(".db.respaldo").exists())
 
@@ -271,6 +285,61 @@ class PruebasAPI(unittest.TestCase):
         s, r = self.c.json("POST", "/api/cotizaciones", {"proyectoId": "p1", "codigo": "C", "fecha": "2026-11-08", "estado": "Enviada", "archivo": "virus.exe"})
         self.assertEqual(s, 400)
         self.assertIn("archivo", r["errores"])
+
+    # ------------------------------------------------------------ renders 360° (SC-02: RF-20, RF-21, RN-06)
+    def test_render_valido_se_guarda_y_descarga(self):
+        datos = png(800, 400)
+        s, r = self.c.json("POST", "/api/proyectos/p2/renders", {"titulo": "Mueble 360", "archivo": "m.png", "archivoDatos": b64(datos), "miniatura": b64(png(64, 32))})
+        self.assertEqual((s, r["ancho"], r["alto"]), (201, 800, 400))
+        s, h, cuerpo = self.c.pedir("GET", f"/api/renders/{r['id']}/archivo")
+        self.assertEqual((s, cuerpo, h["Content-Type"]), (200, datos, "image/png"))
+        self.assertEqual(self.c.pedir("GET", f"/api/renders/{r['id']}/miniatura")[0], 200)
+        rend = next(x for x in self.c.json("GET", "/api/datos")[1]["datos"]["renders"] if x["id"] == r["id"])
+        self.assertEqual((rend["proyectoId"], rend["subidoPor"]), ("p2", "Gabriela Núñez"))
+
+    def test_render_debe_ser_2a1(self):
+        s, r = self.c.json("POST", "/api/proyectos/p2/renders", {"titulo": "x", "archivo": "f.png", "archivoDatos": b64(png(400, 300))})
+        self.assertEqual(s, 400)
+        self.assertIn("2:1", r["errores"]["archivo"])
+
+    def test_render_verifica_el_contenido_real(self):
+        s, r = self.c.json("POST", "/api/proyectos/p2/renders", {"titulo": "x", "archivo": "falso.jpg", "archivoDatos": b64(b"no soy una imagen")})
+        self.assertEqual(s, 400)
+        self.assertIn("no es una imagen", r["errores"]["archivo"])
+        s, r = self.c.json("POST", "/api/proyectos/p2/renders", {"titulo": "x", "archivo": "r.gif", "archivoDatos": b64(png(800, 400))})
+        self.assertIn("Formato no permitido", r["errores"]["archivo"])
+
+    def test_render_tamano_maximo(self):
+        original = L.MAX_RENDER
+        L.MAX_RENDER = 100  # se reduce el límite para no enviar 25 MB en la prueba
+        try:
+            s, r = self.c.json("POST", "/api/proyectos/p2/renders", {"titulo": "x", "archivo": "g.png", "archivoDatos": b64(png(800, 400))})
+        finally:
+            L.MAX_RENDER = original
+        self.assertEqual(s, 400)
+        self.assertIn("25 MB", r["errores"]["archivo"])
+
+    def test_dimensiones_de_jpg_reales(self):
+        jpg = (RAIZ / "prototipo" / "img" / "render-ejemplo-360.jpg").read_bytes()
+        self.assertEqual(L.dimensiones_imagen(jpg), ("image/jpeg", 2048, 1024))
+
+    def test_editar_y_eliminar_render(self):
+        self.assertEqual(self.c.json("PUT", "/api/renders/r1", {"titulo": "Sala final", "descripcion": ""})[0], 200)
+        self.assertEqual(self.c.json("DELETE", "/api/renders/r1")[0], 200)
+        self.assertEqual(self.c.json("GET", "/api/datos")[1]["datos"]["renders"], [])
+
+    def test_cliente_no_accede_a_renders(self):
+        c = self.cliente()
+        self.assertEqual(c.json("GET", "/api/datos")[1]["datos"]["renders"], [])
+        self.assertEqual(c.pedir("GET", "/api/renders/r1/archivo")[0], 403)
+        self.assertEqual(c.json("POST", "/api/proyectos/p1/renders", {"titulo": "x"})[0], 403)
+        self.assertEqual(c.json("DELETE", "/api/renders/r1")[0], 403)
+
+    def test_bd_impide_render_que_no_es_2a1(self):
+        con = L.conectar(self.bd)
+        with self.assertRaises(sqlite3.IntegrityError):
+            con.execute("INSERT INTO render VALUES ('rx','p1','x','','a.png','image/png',400,300,10,x'00',NULL,'G','2026-01-01')")
+        con.close()
 
     # ------------------------------------------------------------ integridad en la propia base de datos
     def test_bd_impide_proyecto_huerfano(self):

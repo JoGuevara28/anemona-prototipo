@@ -1,8 +1,8 @@
 # Resultados de las pruebas de aceptación
 
-Ejecución: 2026-11-15 17:56 · **65 de 65 ejecuciones aprobadas** (34 pruebas × modos servidor, demostración)
+Ejecución: 2026-11-15 18:15 · **71 de 71 ejecuciones aprobadas** (37 pruebas × modos servidor, demostración)
 
-Generado automáticamente por `pruebas/pruebas_aceptacion.py`. Cada prueba verifica un criterio de aceptación (CA) de un caso de uso del ERS o un requisito no funcional. Las pruebas PA-29 a PA-31 verifican la base de datos y solo aplican al modo servidor. PA-32 verifica que cada rol vea una aplicación distinta; PA-33 y PA-34, el acceso de clientes (solicitud de cambio SC-01).
+Generado automáticamente por `pruebas/pruebas_aceptacion.py`. Cada prueba verifica un criterio de aceptación (CA) de un caso de uso del ERS o un requisito no funcional. Las pruebas PA-29 a PA-31 verifican la base de datos y solo aplican al modo servidor. PA-32 verifica que cada rol vea una aplicación distinta; PA-33 y PA-34, el acceso de clientes (SC-01); PA-35 a PA-37, los renders 360° (SC-02).
 
 | Código | Origen | Criterio verificado | Modo servidor | Modo demostración |
 |---|---|---|---|---|
@@ -40,3 +40,6 @@ Generado automáticamente por `pruebas/pruebas_aceptacion.py`. Cada prueba verif
 | PA-29 | RF-16 / IE-01 · base de datos | El documento adjunto a una cotización se guarda y se puede abrir | ✅ Aprobada | — No aplica |
 | PA-30 | RNF-02 / RNF-03 · base de datos | Los datos quedan en la base: otra persona los ve al ingresar desde otro navegador | ✅ Aprobada | — No aplica |
 | PA-31 | RF-17 · base de datos | El servidor rechaza acciones fuera del rol y no envía al cliente datos internos ni de otros clientes | ✅ Aprobada | — No aplica |
+| PA-35 | SC-02 · CU-20 / RF-20 | Un render 360° válido se sube y aparece en la sección y en el proyecto; una foto que no es 2:1 se rechaza | ✅ Aprobada | ✅ Aprobada |
+| PA-36 | SC-02 · CU-21 / RF-21 | En el visor se gira a los lados y arriba-abajo arrastrando, con límite vertical, y Restablecer vuelve al inicio | ✅ Aprobada | ✅ Aprobada |
+| PA-37 | SC-02 · permisos | El cliente no ve renders: no están en su menú y la sección le aparece como no autorizada | ✅ Aprobada | ✅ Aprobada |

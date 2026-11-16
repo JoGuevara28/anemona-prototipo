@@ -58,7 +58,10 @@ USUARIOS = [  # (usuario, contraseña de demostración, nombre, iniciales, rol)
 ]
 # Cuenta de cliente de ejemplo (SC-01): Laura Méndez, clienta ficticia con dos proyectos
 CUENTA_CLIENTE_DEMO = ("cliente", "cliente2026", "c1")
-VERSION_ESQUEMA = 3
+VERSION_ESQUEMA = 4
+MAX_RENDER = 25 * 1024 * 1024  # 25 MB (RN-06)
+MAX_MINIATURA = 1024 * 1024
+RENDER_EJEMPLO = Path(__file__).resolve().parent.parent / "prototipo" / "img"
 RE_USUARIO = re.compile(r"^[a-z0-9._-]{3,30}$")
 DURACION_SESION = dt.timedelta(hours=8)
 MAX_ARCHIVO = 10 * 1024 * 1024  # 10 MB
@@ -162,7 +165,7 @@ def reiniciar_datos(con: sqlite3.Connection) -> None:
     """Borra todos los datos de negocio y vuelve a cargar los de ejemplo (conserva usuarios del estudio y sus sesiones)."""
     con.execute("DELETE FROM sesion WHERE usuario_id IN (SELECT id FROM usuario WHERE rol='cliente')")
     con.execute("DELETE FROM usuario WHERE rol='cliente'")
-    for t in ["cotizacion", "proyecto_material", "proyecto_proveedor", "material_proveedor", "material",
+    for t in ["render", "cotizacion", "proyecto_material", "proyecto_proveedor", "material_proveedor", "material",
               "proveedor_categoria", "proveedor", "actividad", "proyecto", "potencial_cliente", "cliente"]:
         con.execute(f"DELETE FROM {t}")
     sembrar_negocio(con)
@@ -267,6 +270,14 @@ def sembrar_negocio(con: sqlite3.Connection) -> None:
                 ("q1", "p1", "COT-2026-014", _d(-28), 1800000, "Aceptada", "https://www.canva.com/", ""))
     usuario, clave, cliente_id = CUENTA_CLIENTE_DEMO
     _crear_cuenta_cliente(con, cliente_id, usuario, clave)
+    ejemplo = RENDER_EJEMPLO / "render-ejemplo-360.jpg"
+    if ejemplo.exists():  # render 360° de ejemplo (sala ficticia, ver herramientas/generar_render_ejemplo.py)
+        datos_ = ejemplo.read_bytes()
+        mini = (RENDER_EJEMPLO / "render-ejemplo-360-mini.jpg").read_bytes()
+        _, ancho, alto = dimensiones_imagen(datos_)
+        con.execute("INSERT INTO render VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    ("r1", "p1", "Sala — propuesta 360°", "Render de ejemplo: sala con ventana al jardín y nichos en arco.",
+                     "sala-360.jpg", "image/jpeg", ancho, alto, len(datos_), datos_, mini, "María José", _d(-3)))
 
 
 # --------------------------------------------------------------------------- lectura
@@ -332,6 +343,7 @@ def filtrar_por_rol(d: dict, usuario: dict, participa: set) -> dict:
         d["clientes"] = [{"id": c["id"], "nombre": c["nombre"]} for c in d["clientes"] if c["id"] in visibles]
         d["leads"] = []
         d["cotizaciones"] = []
+        d["renders"] = []
     return d
 
 
@@ -341,7 +353,7 @@ def _vista_cliente(d: dict, cliente_id: str) -> dict:
     for p in d["proyectos"]:  # el avance se calcula con todas las actividades, igual que lo ve el estudio
         acts = [a for a in d["actividades"] if a["proyectoId"] == p["id"]]
         p["avance"] = {"hechas": sum(a["estado"] == "Completada" for a in acts), "total": len(acts)}
-    vacio = {k: [] for k in d}
+    vacio = {k: [] for k in d}  # incluye renders: el cliente no los ve (SC-02, sección 7)
     return {**vacio,
             "proyectos": [p for p in d["proyectos"] if p["id"] in propios],
             "actividades": [a for a in d["actividades"] if a["proyectoId"] in propios and a["entregable"]],
@@ -391,6 +403,10 @@ def _todos_los_datos(con) -> dict:
                      for f in q("SELECT * FROM proyecto_proveedor ORDER BY rowid")],
         "matProy": [{"id": f["id"], "proyectoId": f["proyecto_id"], "materialId": f["material_id"], "cantidad": _num(f["cantidad"]),
                      "precioUnit": _num(f["precio_unit"]), "nota": f["nota"]} for f in q("SELECT * FROM proyecto_material ORDER BY rowid")],
+        "renders": [{"id": f["id"], "proyectoId": f["proyecto_id"], "titulo": f["titulo"], "descripcion": f["descripcion"],
+                     "archivo": f["archivo_nombre"], "ancho": f["ancho"], "alto": f["alto"], "tamano": f["tamano"],
+                     "subidoPor": f["subido_por"], "creado": f["creado"], "tieneMini": bool(f["mini"])}
+                    for f in q("SELECT id,proyecto_id,titulo,descripcion,archivo_nombre,ancho,alto,tamano,subido_por,creado,miniatura IS NOT NULL AS mini FROM render ORDER BY creado DESC, rowid DESC")],
         "cotizaciones": [{"id": f["id"], "proyectoId": f["proyecto_id"], "codigo": f["codigo"], "fecha": f["fecha"], "monto": _num(f["monto"]),
                           "estado": f["estado"], "enlace": f["enlace"], "archivo": f["archivo_nombre"], "tieneArchivo": bool(f["datos"])}
                          for f in q("SELECT id,proyecto_id,codigo,fecha,monto,estado,enlace,archivo_nombre,archivo_datos IS NOT NULL AND length(archivo_datos)>0 AS datos FROM cotizacion ORDER BY fecha, rowid")],
@@ -422,7 +438,7 @@ def iniciar_sesion(con, usuario: str, clave: str) -> tuple[str, dict]:
 
 
 VISTAS_BASE = ["inicio", "proyectos", "calendario", "proveedores", "materiales", "buscar", "acerca"]
-VISTAS_COMERCIALES = ["potenciales", "clientes", "cotizador"]
+VISTAS_COMERCIALES = ["potenciales", "clientes", "cotizador", "renders"]  # vistas solo del estudio
 
 
 VISTAS_CLIENTE = ["inicio", "proyectos"]
@@ -1000,3 +1016,87 @@ def puede_ver_cotizacion(con, usuario: dict, cotizacion_id: str) -> bool:
         f = con.execute("SELECT p.cliente_id FROM cotizacion q JOIN proyecto p ON p.id=q.proyecto_id WHERE q.id=?", (cotizacion_id,)).fetchone()
         return bool(f) and f[0] == usuario["clienteId"]
     return False
+
+
+# --------------------------------------------------------------------------- renders 360° (SC-02: RF-20, RF-21, RN-06)
+def dimensiones_imagen(datos_: bytes):
+    """Lee el tipo y las dimensiones reales de un JPG o PNG desde sus cabeceras (no confía en la extensión)."""
+    if datos_[:8] == b"\x89PNG\r\n\x1a\n" and datos_[12:16] == b"IHDR":
+        return "image/png", int.from_bytes(datos_[16:20], "big"), int.from_bytes(datos_[20:24], "big")
+    if datos_[:2] == b"\xff\xd8":
+        i = 2
+        while i + 9 < len(datos_):
+            if datos_[i] != 0xFF:
+                i += 1
+                continue
+            marca = datos_[i + 1]
+            if marca in (0xD8, 0x01) or 0xD0 <= marca <= 0xD7:
+                i += 2
+                continue
+            largo = int.from_bytes(datos_[i + 2:i + 4], "big")
+            if 0xC0 <= marca <= 0xCF and marca not in (0xC4, 0xC8, 0xCC):
+                return "image/jpeg", int.from_bytes(datos_[i + 7:i + 9], "big"), int.from_bytes(datos_[i + 5:i + 7], "big")
+            i += 2 + largo
+    return None, 0, 0
+
+
+def _b64(v, campo, maximo, mensaje_tamano):
+    try:
+        contenido = base64.b64decode(v or "", validate=True)
+    except ValueError:
+        raise ReglaError({campo: "No se pudo leer el archivo."})
+    if len(contenido) > maximo:
+        raise ReglaError({campo: mensaje_tamano})
+    return contenido
+
+
+def subir_render(con, proyecto_id: str, v: dict, usuario: dict):
+    """RF-20: guarda un render 360° validando formato real, tamaño y proporción (RN-06)."""
+    _existe(con, "proyecto", proyecto_id)
+    val = Validador(v)
+    val.req("titulo")
+    nombre = val("archivo")
+    if not nombre or not v.get("archivoDatos"):
+        val.error("archivo", "Seleccione el archivo del render.")
+    elif not nombre.lower().endswith((".jpg", ".jpeg", ".png")):
+        val.error("archivo", "Formato no permitido. Use una imagen JPG o PNG.")
+    val.fin()
+    datos_ = _b64(v["archivoDatos"], "archivo", MAX_RENDER, "El archivo supera el máximo de 25 MB.")
+    tipo, ancho, alto = dimensiones_imagen(datos_)
+    if not tipo:
+        raise ReglaError({"archivo": "El archivo no es una imagen JPG o PNG válida."})
+    if abs(ancho / alto - 2) > 0.04:
+        raise ReglaError({"archivo": f"El render debe ser 360° (proporción 2:1, por ejemplo 4096 × 2048). Esta imagen mide {ancho} × {alto}. "
+                                     "Expórtelo como «panorama 360°» desde su programa de render."})
+    mini = _b64(v["miniatura"], "archivo", MAX_MINIATURA, "La miniatura es demasiado grande.") if v.get("miniatura") else None
+    rid = nuevo_id("r")
+    con.execute("INSERT INTO render VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (rid, proyecto_id, txt(v["titulo"]), txt(v.get("descripcion")), nombre, tipo, ancho, alto, len(datos_), datos_, mini,
+                 usuario["nombre"], hoy().isoformat()))
+    return {"id": rid, "ancho": ancho, "alto": alto}
+
+
+def editar_render(con, rid: str, v: dict):
+    _existe(con, "render", rid)
+    val = Validador(v)
+    val.req("titulo")
+    val.fin()
+    con.execute("UPDATE render SET titulo=?, descripcion=? WHERE id=?", (txt(v["titulo"]), txt(v.get("descripcion")), rid))
+    return {"id": rid}
+
+
+def eliminar_render(con, rid: str):
+    _existe(con, "render", rid)
+    con.execute("DELETE FROM render WHERE id=?", (rid,))
+    return {"id": rid}
+
+
+def archivo_render(con, rid: str, miniatura: bool = False):
+    f = con.execute("SELECT archivo_nombre, archivo_tipo, datos, miniatura FROM render WHERE id=?", (rid,)).fetchone()
+    if not f:
+        raise NoEncontrado()
+    if miniatura:
+        if not f["miniatura"]:
+            raise NoEncontrado()
+        return "miniatura.jpg", "image/jpeg", bytes(f["miniatura"])
+    return f["archivo_nombre"], f["archivo_tipo"], bytes(f["datos"])

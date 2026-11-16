@@ -29,7 +29,7 @@ import logica as L  # noqa: E402
 RAIZ = Path(__file__).resolve().parent.parent
 WEB = RAIZ / "prototipo"
 BD_POR_DEFECTO = Path(__file__).resolve().parent / "db" / "anemona.db"
-MAX_CUERPO = 15 * 1024 * 1024
+MAX_CUERPO = 40 * 1024 * 1024  # un render de 25 MB ocupa ~34 MB en base64
 COOKIE = "anemona_sesion"
 
 # ------------------------------------------------------------------ rutas de la API
@@ -89,6 +89,13 @@ def _(con, c, u, id): return L.cargar_plan(con, id)
 def _(con, c, u, id): return L.asociar_proveedores(con, id, c)
 @ruta("POST", r"/api/proyectos/(?P<id>\w+)/materiales")
 def _(con, c, u, id): return L.asociar_material(con, id, c)
+
+@ruta("POST", r"/api/proyectos/(?P<id>\w+)/renders")
+def _(con, c, u, id): return L.subir_render(con, id, c, u)
+@ruta("PUT", r"/api/renders/(?P<id>\w+)")
+def _(con, c, u, id): return L.editar_render(con, id, c)
+@ruta("DELETE", r"/api/renders/(?P<id>\w+)")
+def _(con, c, u, id): return L.eliminar_render(con, id)
 
 @ruta("POST", r"/api/actividades", permiso="actividad")
 def _(con, c, u): return L.crear_actividad(con, c, u)
@@ -234,6 +241,12 @@ class Manejador(BaseHTTPRequestHandler):
         if ruta_ == "/api/sesion" and metodo == "GET":
             return self._json(200, {"usuario": usuario})
         m = re.fullmatch(r"/api/cotizaciones/(\w+)/archivo", ruta_)
+        mr = re.fullmatch(r"/api/renders/(\w+)/(archivo|miniatura)", ruta_)
+        if mr and metodo == "GET":
+            if not autorizado(usuario, "todo"):  # SC-02: solo propietaria y arquitecta
+                raise L.Prohibido()
+            nombre, tipo, contenido = L.archivo_render(con, mr.group(1), mr.group(2) == "miniatura")
+            return self._archivo(nombre, tipo, contenido, cache=True)
         if m and metodo == "GET":
             if not L.puede_ver_cotizacion(con, usuario, m.group(1)):
                 raise L.Prohibido()
@@ -256,6 +269,16 @@ class Manejador(BaseHTTPRequestHandler):
                 con.commit()
                 return self._json(201 if metodo == "POST" else 200, resultado)
         raise L.NoEncontrado()
+
+    def _archivo(self, nombre, tipo, contenido, cache=False):
+        self.send_response(200)
+        self.send_header("Content-Type", tipo)
+        self.send_header("Content-Length", str(len(contenido)))
+        self.send_header("Content-Disposition", f"inline; filename*=UTF-8''{quote(nombre)}")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Cache-Control", "private, max-age=3600" if cache else "no-store")
+        self.end_headers()
+        self.wfile.write(contenido)
 
     def _estatico(self, ruta_):
         if ruta_ in ("", "/"):

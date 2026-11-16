@@ -40,6 +40,7 @@ Laura tiene dos proyectos en los datos de ejemplo: *Apartamento Escazú* y *Mueb
 | Proveedores, materiales y costos (RF-09 a RF-12) | ✅ | ✅ | — | Información comercial del estudio |
 | Cotizaciones (RF-16) | ✅ | ✅ | 👁 solo las suyas | SC-01 |
 | Cotizador | ✅ | ✅ | — | Información comercial |
+| Renders 360°: ver, subir, editar, eliminar (RF-20, RF-21) | ✅ | ✅ | — | SC-02: material de trabajo del estudio |
 | Búsqueda general (RF-15) | ✅ | ✅ | — | Recorre información del estudio |
 | Restablecer datos de ejemplo (administración) | ✅ | — | — | Función de administración |
 

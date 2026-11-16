@@ -19,6 +19,8 @@ Genera pruebas/resultados.md con el resultado de cada prueba.
 """
 import base64
 import datetime
+import struct
+import zlib
 import os
 import shutil
 import sys
@@ -46,6 +48,14 @@ def prueba(codigo, origen, descripcion, solo=None):
         PRUEBAS.append((codigo, origen, descripcion, fn, solo))
         return fn
     return deco
+
+
+def png(ancho, alto):
+    """PNG liso del tamaño pedido, generado sin librerías externas."""
+    fila = b"\x00" + b"\xb4\x96\x78" * ancho
+    bloque = lambda t, d: struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)  # noqa: E731
+    return (b"\x89PNG\r\n\x1a\n" + bloque(b"IHDR", struct.pack(">IIBBBBB", ancho, alto, 8, 2, 0, 0, 0))
+            + bloque(b"IDAT", zlib.compress(fila * alto)) + bloque(b"IEND", b""))
 
 
 def pausa(pg, ms=250):
@@ -532,12 +542,67 @@ def _(pg):
     check({p["clienteId"] for p in datos["proyectos"]} == {"c1"} and len(datos["clientes"]) == 1, "el servidor envía datos de otros clientes")
 
 
+# ---------------------------------------------------------------- renders 360° (SC-02)
+@prueba("PA-35", "SC-02 · CU-20 / RF-20", "Un render 360° válido se sube y aparece en la sección y en el proyecto; una foto que no es 2:1 se rechaza")
+def _(pg):
+    entrar(pg, "mariajose", "anemona2026"); ir(pg, "renders")
+    pg.click("button[data-act=subirRender]")
+    pg.select_option("[name=proyectoId]", "p3")
+    pg.fill("[name=titulo]", "Cocina 360 prueba")
+    pg.set_input_files("[name=archivo]", files=[{"name": "foto.png", "mimeType": "image/png", "buffer": png(400, 300)}])
+    guardar(pg)
+    check("2:1" in error_de(pg, "archivo"), "aceptó una imagen que no es 360°")
+    check(pg.input_value("[name=titulo]") == "Cocina 360 prueba", "perdió el título ingresado")
+    pg.set_input_files("[name=archivo]", files=[{"name": "cocina.png", "mimeType": "image/png", "buffer": png(800, 400)}])
+    guardar(pg)
+    check("Cocina 360 prueba" in pg.inner_text("#view"), "no aparece en la sección Renders")
+    ir(pg, "proyecto-p3"); pg.click("button.tab[data-id=renders]"); pausa(pg)
+    check(pg.locator(".rcard:has-text('Cocina 360 prueba')").count() == 1, "no aparece en la pestaña del proyecto")
+
+
+@prueba("PA-36", "SC-02 · CU-21 / RF-21", "En el visor se gira a los lados y arriba-abajo arrastrando, con límite vertical, y Restablecer vuelve al inicio")
+def _(pg):
+    entrar(pg, "gabriela", "anemona2026"); ir(pg, "renders")
+    pg.click(".rcard")
+    pg.wait_for_selector(".visor.listo", timeout=10000)
+    cv = pg.locator(".visor-canvas")
+    caja = cv.bounding_box()
+    cx, cy = caja["x"] + caja["width"] / 2, caja["y"] + caja["height"] / 2
+
+    def arrastrar(dx, dy):
+        pg.mouse.move(cx, cy); pg.mouse.down(); pg.mouse.move(cx + dx, cy + dy, steps=8); pg.mouse.up(); pausa(pg, 150)
+    ang = lambda k: float(cv.get_attribute(f"data-{k}"))  # noqa: E731
+    arrastrar(-250, 0)
+    check(ang("yaw") < -10 and abs(ang("pitch")) < 0.5, f"el arrastre horizontal no giró a los lados ({ang('yaw')}, {ang('pitch')})")
+    arrastrar(0, 150)
+    check(ang("pitch") > 10, "el arrastre vertical no giró hacia arriba")
+    for _i in range(4):
+        arrastrar(0, 400)
+    check(ang("pitch") <= 85, "la vista vertical se voltea (sin límite)")
+    pg.click("[data-v=reset]"); pausa(pg, 150)
+    check(ang("yaw") == 0 and ang("pitch") == 0 and ang("fov") == 75, "Restablecer no volvió a la vista inicial")
+
+
+@prueba("PA-37", "SC-02 · permisos", "El cliente no ve renders: no están en su menú y la sección le aparece como no autorizada")
+def _(pg):
+    entrar(pg, "cliente", "cliente2026")
+    check("Renders 360°" not in pg.locator(".side nav a").all_inner_texts(), "el cliente ve Renders en el menú")
+    ir(pg, "renders")
+    check("no autorizado" in pg.inner_text("#view"), "el cliente puede abrir la sección Renders")
+    if MODO == "servidor":
+        estado = pg.evaluate("async () => (await fetch('/api/renders/r1/archivo')).status")
+        check(estado == 403, f"el servidor entregó el render al cliente ({estado})")
+
+
 # ---------------------------------------------------------------- ejecución
+ARGS_WEBGL = ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"]  # WebGL por software, para el visor 360° sin tarjeta gráfica
+
+
 def navegador(p):
     for ruta in ("/usr/bin/google-chrome", shutil.which("chromium") or "", shutil.which("chrome") or ""):
         if ruta and os.path.exists(ruta):
-            return p.chromium.launch(executable_path=ruta)
-    return p.chromium.launch()
+            return p.chromium.launch(executable_path=ruta, args=ARGS_WEBGL)
+    return p.chromium.launch(args=ARGS_WEBGL)
 
 
 def ejecutar_modo(b, modo):
@@ -607,7 +672,7 @@ def main():
         f"Ejecución: {fecha} · **{aprobadas} de {total} ejecuciones aprobadas** ({len(PRUEBAS)} pruebas × modos {', '.join(modos)})",
         "",
         "Generado automáticamente por `pruebas/pruebas_aceptacion.py`. Cada prueba verifica un criterio de aceptación (CA) "
-        "de un caso de uso del ERS o un requisito no funcional. Las pruebas PA-29 a PA-31 verifican la base de datos y solo aplican al modo servidor. PA-32 verifica que cada rol vea una aplicación distinta; PA-33 y PA-34, el acceso de clientes (solicitud de cambio SC-01).",
+        "de un caso de uso del ERS o un requisito no funcional. Las pruebas PA-29 a PA-31 verifican la base de datos y solo aplican al modo servidor. PA-32 verifica que cada rol vea una aplicación distinta; PA-33 y PA-34, el acceso de clientes (SC-01); PA-35 a PA-37, los renders 360° (SC-02).",
         "",
         "| Código | Origen | Criterio verificado | " + " | ".join(f"Modo {m}" for m in modos) + " |",
         "|---|---|---|" + "---|" * len(modos),

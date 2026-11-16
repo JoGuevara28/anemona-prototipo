@@ -11,7 +11,8 @@
 | 3c. Identidad visual | Interfaz con el estilo de Anémona (`docs/09-guia-de-estilo.md`) | ✅ Hecho |
 | 3d. Roles | Vistas y permisos distintos por rol (`docs/10-roles-y-permisos.md`) | ✅ Hecho |
 | 3e. SC-01 | Acceso de clientes: solicitud de cambio, RF-18, RF-19, portal del cliente | ✅ Implementada · pendiente validación con Anémona |
-| 4. Verificación | Pruebas de aceptación (dos modos) y de API y base de datos | ✅ 65/65 y 37/37 |
+| 3f. SC-02 | Renders 360° con visor interactivo | ✅ Implementada · pendiente validación con Anémona |
+| 4. Verificación | Pruebas de aceptación (dos modos) y de API y base de datos | ✅ 71/71 y 45/45 |
 | 5. Documentación | Trazabilidad, modelo de datos, arquitectura, supuestos, guía de demo, plan de pruebas | ✅ Hecho |
 | 6. Validación | Reunión con Gabriela: supuestos S-01 a S-12 y prueba de usabilidad (RNF-01) | ⏸ Más adelante (por ahora el prototipo solo lo usa el equipo) |
 | 7. Ajustes | Cambios solicitados en la validación y actualización del ERS (v1.1) | ⏳ Pendiente |
@@ -31,8 +32,9 @@ Cada integrante es responsable de conocer a fondo sus módulos, presentarlos y v
 - [ ] Revisar juntos el prototipo completo con la guía de demostración.
 - [ ] Cada integrante corre el prototipo en su computadora (`python servidor/servidor.py`) y recorre sus módulos.
 - [ ] Mientras no haya validación con Anémona, el equipo usa las cuentas `gabriela`, `mariajose` y `cliente` para simular los roles del caso.
-- [ ] José Gabriel: revisar y firmar la aprobación de la SC-01 (`docs/11-solicitud-de-cambio-SC-01.md`, sección 10).
-- [ ] Incorporar la SC-01 al ERS (v1.1): §2.3, §2.9, RF-18, RF-19, CU-18, CU-19, RNF-03, RN-04 y RN-05.
+- [ ] José Gabriel: revisar y firmar la aprobación de la SC-01 y la SC-02 (`docs/11` y `docs/12`, sección de aprobación).
+- [ ] Incorporar al ERS (v1.1) la SC-01 (§2.3, §2.9, RF-18, RF-19, CU-18, CU-19, RNF-03, RN-04, RN-05) y la SC-02 (§2.10, RF-20, RF-21, RNF-06, RNF-07, RN-06, CU-20, CU-21).
+- [ ] Probar el visor 360° con un render real exportado por María José y medir el tiempo de carga (RNF-06).
 - [ ] Decidir qué hacer con el Cotizador (commit `35a223c`): formalizarlo como cambio de alcance o quitarlo, porque el ERS deja fuera el cálculo de cotizaciones.
 - [ ] *(Más adelante)* Reunión de validación con Gabriela: tabla de supuestos, empezando por **S-04**, y prueba de usabilidad RNF-01; registrar el resultado en `04-supuestos-y-decisiones.md`.
 - [ ] Ajustar el prototipo según los cambios solicitados y volver a ejecutar las pruebas.

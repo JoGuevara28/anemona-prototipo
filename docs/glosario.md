@@ -34,5 +34,7 @@
 | **Servidor / cliente** | El servidor guarda los datos y aplica las reglas; el cliente (el navegador) muestra la interfaz. |
 | **Sesión / cookie** | Al ingresar, el servidor entrega un identificador secreto (token) que el navegador guarda en una cookie y envía en cada petición. |
 | **Hash de contraseña (PBKDF2)** | Transformación irreversible de la contraseña. La base guarda el hash, nunca la contraseña real. |
+| **Render 360° (panorámico, equirectangular)** | Imagen que contiene la vista completa alrededor de un punto: 360° a los lados y 180° de arriba a abajo. Siempre mide el doble de ancho que de alto (2:1). Al mostrarla en un visor, se puede «mirar alrededor». |
+| **WebGL** | Tecnología del navegador para dibujar gráficos 3D con la tarjeta gráfica. El visor 360° la usa sin librerías externas. |
 | **Rol / RBAC** | Rol: conjunto de permisos que se asigna a un usuario (propietaria, arquitecta, personal interno). RBAC (*Role-Based Access Control*): controlar el acceso según el rol y no persona por persona. |
 | **Códigos HTTP** | 200/201 correcto · 400 datos inválidos · 401 sin sesión · 403 sin permiso · 404 no existe. |

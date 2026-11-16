@@ -17,6 +17,7 @@ Entidades y relaciones del prototipo. El diagrama es **conceptual**: muestra qu�
 | `proyecto_proveedor` | RF-11 | Condición Considerado o Seleccionado; un proveedor no se repite en el mismo proyecto |
 | `proyecto_material` | RF-12 | Cantidad > 0; guarda el precio pactado en ese proyecto |
 | `cotizacion` | RF-16 | Enlace o documento obligatorio; el documento se guarda como BLOB |
+| `render` | RF-20, RF-21 (SC-02) | Imagen y miniatura como BLOB; solo `image/jpeg` o `image/png`; hasta 25 MB; `CHECK` de proporción 2:1 (±2 %); se borra si se borra el proyecto |
 
 ## Diagrama entidad-relación
 

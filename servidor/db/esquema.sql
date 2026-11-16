@@ -204,5 +204,24 @@ CREATE TABLE cotizacion (
     CHECK (enlace <> '' OR archivo_nombre <> '')
 );
 
+-- ---------------------------------------------------------------- renders 360° (SC-02: RF-20, RF-21, RN-06)
+CREATE TABLE render (
+    id               TEXT PRIMARY KEY,
+    proyecto_id      TEXT NOT NULL REFERENCES proyecto(id) ON DELETE CASCADE,
+    titulo           TEXT NOT NULL CHECK (trim(titulo) <> ''),
+    descripcion      TEXT NOT NULL DEFAULT '',
+    archivo_nombre   TEXT NOT NULL,
+    archivo_tipo     TEXT NOT NULL CHECK (archivo_tipo IN ('image/jpeg', 'image/png')),
+    ancho            INTEGER NOT NULL CHECK (ancho > 0),
+    alto             INTEGER NOT NULL CHECK (alto > 0),
+    tamano           INTEGER NOT NULL CHECK (tamano > 0 AND tamano <= 26214400),   -- 25 MB
+    datos            BLOB NOT NULL,
+    miniatura        BLOB,
+    subido_por       TEXT NOT NULL,
+    creado           TEXT NOT NULL,
+    CHECK (abs(ancho * 1.0 / alto - 2.0) <= 0.04)   -- proporción 2:1 (±2 %)
+);
+CREATE INDEX idx_render_proyecto ON render(proyecto_id);
+
 -- Versión del esquema: el servidor recrea la base si encuentra una versión anterior.
-PRAGMA user_version = 3;
+PRAGMA user_version = 4;

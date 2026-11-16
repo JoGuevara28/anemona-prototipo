@@ -28,6 +28,8 @@ Cada regla se aplica en tres capas: **interfaz** (`prototipo/js/app.js`), **serv
 | RF-16 | Registrar referencia a cotización | CU-16 | Ficha del proyecto → Cotizaciones · `formCot` · `logica.crear_cotizacion` (documento guardado en la base) | PA-25, PA-29 · `test_cotizacion_*` |
 | RF-17 | Controlar acceso | CU-17 | Pantalla de ingreso · roles con vistas distintas (`docs/10-roles-y-permisos.md`) · tabla `rol` · `autorizado`, `filtrar_por_rol` en el servidor · `aplicarPermisos` en la interfaz | PA-26, PA-27, PA-31, PA-32 · `test_cliente_no_modifica_nada`, `test_solo_la_propietaria_administra`, `test_contrasenas_*` |
 | RF-18 *(SC-01)* | Gestionar acceso de clientes | CU-18 | Ficha del cliente → «Acceso del cliente» · `tarjetaAcceso`, `formAcceso` · `logica.dar_acceso_cliente`, `cambiar_acceso_cliente` · `usuario.cliente_id`, `usuario.activo` | PA-34 · `test_dar_y_desactivar_acceso`, `test_validaciones_del_acceso`, `test_bd_cuenta_de_cliente_requiere_cliente` |
+| RF-20 *(SC-02)* | Gestionar renders del proyecto | CU-20 | Sección «Renders 360°» y pestaña del proyecto · `vRenders`, `formRender`, `galeriaRenders` · `logica.subir_render`, `editar_render`, `eliminar_render` · tabla `render` | PA-35 · `test_render_*`, `test_editar_y_eliminar_render`, `test_bd_impide_render_que_no_es_2a1` |
+| RF-21 *(SC-02)* | Visualizar render 360° | CU-21 | Visor interactivo · `prototipo/js/visor360.js` (WebGL) · `verRender` | PA-36 |
 | RF-19 *(SC-01)* | Consultar avance del proyecto (cliente) | CU-19 | Portal del cliente: Inicio y Mis proyectos · `vInicioCliente`, `vProyectoCliente` · `logica._vista_cliente` | PA-33 · `test_cliente_solo_recibe_lo_suyo`, `test_avance_del_cliente_igual_al_del_estudio`, `test_cliente_no_descarga_cotizaciones_ajenas` |
 
 ## Requisitos no funcionales
@@ -38,6 +40,8 @@ Cada regla se aplica en tres capas: **interfaz** (`prototipo/js/app.js`), **serv
 | RNF-02 | Integridad | El cliente es obligatorio y se verifica que exista en la interfaz, en el servidor y en la base (llave foránea). Si no hay clientes, se ofrece registrarlo primero. | PA-11, PA-30 · `test_bd_*` |
 | RNF-03 *(modificado por SC-01)* | Privacidad | Todo requiere ingreso; contraseñas cifradas; cookie HttpOnly. El cliente nunca recibe información de otros clientes, proveedores, materiales, costos ni actividades internas, ni siquiera llamando a la API. | PA-26, PA-27, PA-31, PA-33 · `test_cookie_*`, `test_contrasenas_*`, `test_cliente_solo_recibe_lo_suyo` |
 | RNF-04 | Recuperación | Ante un error, el formulario conserva los valores, marca el campo y muestra un resumen. | PA-02, PA-21 |
+| RNF-06 *(SC-02)* | Rendimiento | Visor sin librerías externas; miniatura de 512 × 256 en la galería, para no descargar el render completo; caché del archivo en el navegador | Medición manual con un render de 25 MB |
+| RNF-07 *(SC-02)* | Compatibilidad | WebGL estándar; aviso si el navegador no lo admite; reducción automática si la imagen supera el máximo del dispositivo | PA-36 (Chrome); revisión manual en Edge, Safari y Firefox |
 | RNF-05 | Adaptabilidad | Proveedores, materiales y actividades son opcionales. «Anteproyecto casa de playa» es el ejemplo. | PA-19, PA-28 |
 
 ## Reglas de negocio e interfaces externas

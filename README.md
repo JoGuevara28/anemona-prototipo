@@ -25,15 +25,16 @@ La interfaz sigue la identidad visual del estudio: crema, negro, madera y tonos 
 | Requisitos no funcionales verificados | **5 de 5** (RNF-01 a RNF-05) |
 | Reglas de negocio aplicadas | RN-01, RN-02, RN-03 e IE-01, **en la interfaz, en el servidor y en la base de datos** |
 | Roles | **3 cuentas con vistas distintas**: propietaria, arquitecta y cliente → [`docs/10-roles-y-permisos.md`](docs/10-roles-y-permisos.md) |
-| Cambios de alcance | **SC-01** Acceso de clientes (RF-18, RF-19) → [`docs/11-solicitud-de-cambio-SC-01.md`](docs/11-solicitud-de-cambio-SC-01.md) |
-| Pruebas de aceptación (interfaz) | **65 de 65 aprobadas** (34 pruebas en dos modos) → [`pruebas/resultados.md`](pruebas/resultados.md) |
-| Pruebas de API y base de datos | **37 de 37 aprobadas** → `pruebas/pruebas_api.py` |
+| Cambios de alcance | **SC-01** Acceso de clientes (RF-18, RF-19) → [`docs/11`](docs/11-solicitud-de-cambio-SC-01.md) · **SC-02** Renders 360° con visor interactivo (RF-20, RF-21) → [`docs/12`](docs/12-solicitud-de-cambio-SC-02.md) |
+| Pruebas de aceptación (interfaz) | **71 de 71 aprobadas** (37 pruebas en dos modos) → [`pruebas/resultados.md`](pruebas/resultados.md) |
+| Pruebas de API y base de datos | **45 de 45 aprobadas** → `pruebas/pruebas_api.py` |
 
 ## Lenguajes y tecnologías
 
 | Capa | Tecnología | Para qué |
 |---|---|---|
 | Interfaz | **HTML5, CSS3 y JavaScript** (sin frameworks) | Pantallas, formularios, validaciones inmediatas |
+| Visor 360° | **WebGL** (GLSL), incluido en el navegador | Mostrar los renders panorámicos y girarlos (SC-02) |
 | Servidor | **Python 3** (solo la biblioteca estándar) | API REST, reglas de negocio, sesiones, contraseñas cifradas |
 | Base de datos | **SQLite** (lenguaje **SQL**) | Datos persistentes con llaves foráneas, campos únicos y restricciones |
 | Pruebas | **Python** + **Playwright** · `unittest` | Pruebas de aceptación en navegador real y pruebas de API |
@@ -79,14 +80,19 @@ Cada rol ve una aplicación distinta al ingresar. La matriz completa está en [`
 ├── prototipo/                     ← interfaz (HTML, CSS, JavaScript)
 │   ├── index.html
 │   ├── css/styles.css             ← estilo visual de Anémona
-│   └── js/app.js                  ← pantallas, validaciones y conexión con la API
+│   ├── img/                       ← render 360° de ejemplo
+│   └── js/
+│       ├── app.js                 ← pantallas, validaciones y conexión con la API
+│       ├── visor360.js            ← visor de renders 360° (WebGL)
+│       └── render-ejemplo.js      ← render de ejemplo embebido para el modo demostración
+├── herramientas/generar_render_ejemplo.py  ← genera el render 360° de ejemplo (numpy + Pillow)
 ├── servidor/                      ← servidor y base de datos (Python + SQLite)
 │   ├── servidor.py                ← servidor web y rutas de la API REST
 │   ├── logica.py                  ← reglas de negocio y acceso a datos
 │   └── db/esquema.sql             ← definición de tablas y restricciones
 ├── pruebas/
-│   ├── pruebas_aceptacion.py      ← 34 pruebas de aceptación (Playwright)
-│   ├── pruebas_api.py             ← 37 pruebas de API y base de datos
+│   ├── pruebas_aceptacion.py      ← 37 pruebas de aceptación (Playwright)
+│   ├── pruebas_api.py             ← 45 pruebas de API y base de datos
 │   └── resultados.md              ← último resultado
 └── docs/
     ├── 01-resumen-del-caso.md         problema, stakeholders, alcance
@@ -99,7 +105,8 @@ Cada rol ve una aplicación distinta al ingresar. La matriz completa está en [`
     ├── 08-arquitectura.md             capas, API REST, seguridad
     ├── 09-guia-de-estilo.md           colores y tipografía de la marca
     ├── 10-roles-y-permisos.md         qué ve y qué puede hacer cada rol
-    ├── 11-solicitud-de-cambio-SC-01.md  propuesta: acceso de clientes (RF-18, RF-19)
+    ├── 11-solicitud-de-cambio-SC-01.md  acceso de clientes (RF-18, RF-19)
+    ├── 12-solicitud-de-cambio-SC-02.md  renders 360° (RF-20, RF-21)
     └── glosario.md                    términos y siglas
 ```
 

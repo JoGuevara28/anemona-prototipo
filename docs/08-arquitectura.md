@@ -19,7 +19,7 @@ flowchart LR
 
 | Capa | Archivo | Responsabilidad |
 |---|---|---|
-| Presentación | `prototipo/index.html`, `css/styles.css`, `js/app.js` | Mostrar pantallas y validar formatos al momento: campos obligatorios, correo, teléfono, cédula. Así el usuario recibe respuesta inmediata (RNF-01, RNF-04). |
+| Presentación | `prototipo/index.html`, `css/styles.css`, `js/app.js`, `js/visor360.js` (visor WebGL) | Mostrar pantallas y validar formatos al momento: campos obligatorios, correo, teléfono, cédula. Así el usuario recibe respuesta inmediata (RNF-01, RNF-04). |
 | Aplicación | `servidor/servidor.py` | Recibir las peticiones HTTP, verificar la sesión y el permiso del rol (RF-17), y devolver JSON. |
 | Lógica de negocio | `servidor/logica.py` | Aplicar **todas** las reglas del ERS: duplicados, identificación única, transiciones de estado, cliente obligatorio, etc. |
 | Datos | `servidor/db/esquema.sql` | Tablas con llaves foráneas, campos únicos y restricciones `CHECK`, como última defensa de la integridad (RNF-02). |
@@ -62,6 +62,9 @@ Todas las rutas, salvo `/api/salud` y `POST /api/sesion`, requieren una sesión 
 | POST / PUT | `/api/proveedores[/{id}]` | RF-09 | Registrar o actualizar un proveedor |
 | POST / PUT | `/api/materiales[/{id}]` | RF-10 | Registrar o actualizar un material |
 | POST / PUT | `/api/cotizaciones[/{id}]` | RF-16 | Registrar la referencia, con documento adjunto opcional en base64 |
+| POST | `/api/proyectos/{id}/renders` | RF-20 (SC-02) | Subir un render 360° `{titulo, descripcion, archivo, archivoDatos, miniatura}` |
+| PUT / DELETE | `/api/renders/{id}` | RF-20 (SC-02) | Editar título y descripción, o eliminar |
+| GET | `/api/renders/{id}/archivo` · `/miniatura` | RF-21 (SC-02) | Imagen completa para el visor y miniatura para la galería (solo el estudio) |
 | GET | `/api/cotizaciones/{id}/archivo` | RF-16, RF-19 | Descargar el documento adjunto (el cliente, solo los de sus proyectos) |
 | POST | `/api/reiniciar` | — | Vuelve a cargar los datos de ejemplo (para presentaciones) |
 
