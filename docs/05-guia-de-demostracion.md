@@ -2,6 +2,16 @@
 
 Guion para presentar el prototipo en clase o ante Anémona (unos 12–15 minutos). Sigue la historia de un cliente real del estudio: alguien escribe por WhatsApp, contrata, se crea su proyecto y se le da seguimiento.
 
+## Plan para el día de la presentación (sin depender del internet del lugar)
+
+El prototipo **no necesita internet**: el servidor y la base de datos corren en la propia computadora. Lo único que viene de internet son las fuentes de la marca; si la red no las deja pasar, se usan las del sistema y todo funciona igual.
+
+1. **La noche anterior:** `git pull`, ejecutar `python servidor/servidor.py`, abrir **http://localhost:8000** y probarlo **con el WiFi apagado**.
+2. **En el lugar:** usar la opción A (servidor en la laptop). No depende del WiFi de la universidad.
+3. **Plan B:** doble clic en `prototipo/index.html` (modo demostración). También funciona sin internet.
+4. **Plan C:** el enlace de GitHub Pages con datos del celular (hotspot), por si la red del lugar bloquea GitHub.
+5. Llevar el cargador: el visor 360° usa la tarjeta gráfica.
+
 **Antes de empezar:**
 
 1. Ejecutar `python servidor/servidor.py` (o doble clic en `iniciar-windows.bat`) y abrir **http://localhost:8000**.

@@ -11,6 +11,13 @@
    ===================================================================== */
 'use strict';
 
+/* Fuentes de la marca (Jost y Quicksand). Se cargan sin bloquear la página: si la red bloquea
+   o hace lenta la conexión a Google Fonts (redes de universidades, sin internet), el prototipo
+   abre igual con las fuentes del sistema. */
+(function cargarFuentes(){try{const l=document.createElement('link');l.rel='stylesheet';
+  l.href='https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Quicksand:wght@600;700&display=swap';
+  document.head.appendChild(l)}catch(e){}})();
+
 /* ================= Catálogos (en modo servidor se cargan desde la base) ================= */
 const LS='anemona-proto-v4';
 let TIPOS=['Anteproyecto','Diseño de interiores','Mobiliario a medida','Remodelación','Gestión de construcción'];

@@ -6,3 +6,4 @@ Thumbs.db
 ~$*
 servidor/db/*.db
 servidor/db/*.db-journal
+servidor/db/*.respaldo
