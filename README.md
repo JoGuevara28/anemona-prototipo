@@ -52,7 +52,7 @@ Requisito: **Python 3.9 o superior** (se verifica con `python --version`).
 python servidor/servidor.py
 ```
 
-Luego abra **http://localhost:8000** en el navegador. En Windows también puede hacer doble clic en `iniciar-windows.bat`; en Mac o Linux, ejecutar `./iniciar.sh`.
+Luego abra **http://localhost:8000** en el navegador. En Windows también puede hacer doble clic en `iniciar-windows.bat`; en **Mac**, doble clic en `iniciar-mac.command` (la primera vez: clic derecho → **Abrir**); en Linux, `./iniciar.sh`.
 
 - La base de datos se crea sola en `servidor/db/anemona.db` con los datos de ejemplo.
 - `python servidor/servidor.py --reiniciar` borra la base y vuelve a los datos de ejemplo.
