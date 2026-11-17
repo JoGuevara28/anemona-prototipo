@@ -1,0 +1,5 @@
+{
+  // Evita que «Live Server» u otras extensiones abran la carpeta equivocada
+  "liveServer.settings.root": "/prototipo",
+  "python.terminal.activateEnvironment": false
+}

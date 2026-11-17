@@ -140,7 +140,7 @@ class Manejador(BaseHTTPRequestHandler):
     # -- utilidades
     def log_message(self, fmt, *args):  # registro breve en consola
         if self.path.startswith("/api/"):
-            sys.stderr.write(f"[{self.log_date_time_string()}] {self.command} {self.path} → {args[1] if len(args) > 1 else ''}\n")
+            sys.stderr.write(f"[{self.log_date_time_string()}] {self.command} {self.path} -> {args[1] if len(args) > 1 else ''}\n")
 
     def _json(self, estado: int, obj, extra_headers: dict | None = None):
         cuerpo = json.dumps(obj, ensure_ascii=False).encode("utf-8")
@@ -312,7 +312,17 @@ def main():
     ap.add_argument("--bd", type=Path, default=BD_POR_DEFECTO, help="ruta del archivo SQLite")
     ap.add_argument("--reiniciar", action="store_true", help="borra la base de datos y carga los datos de ejemplo")
     a = ap.parse_args()
-    srv = crear_servidor(a.host, a.puerto, a.bd, a.reiniciar)
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # consolas de Windows sin UTF-8
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+    try:
+        srv = crear_servidor(a.host, a.puerto, a.bd, a.reiniciar)
+    except OSError:
+        print(f"\n  No se pudo usar el puerto {a.puerto}: probablemente el servidor ya está abierto en otra terminal.")
+        print(f"  Ciérrelo con Ctrl+C o use otro puerto:  python servidor/servidor.py --puerto {a.puerto + 1}\n")
+        sys.exit(1)
     print("\n  Anémona Design Studio · prototipo")
     print(f"  Base de datos: {a.bd}")
     print(f"  Abra en el navegador:  http://localhost:{a.puerto}\n  (Ctrl+C para detener)\n")

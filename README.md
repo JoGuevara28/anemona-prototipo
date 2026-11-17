@@ -58,6 +58,17 @@ Luego abra **http://localhost:8000** en el navegador. En Windows también puede 
 - `python servidor/servidor.py --reiniciar` borra la base y vuelve a los datos de ejemplo.
 - `python servidor/servidor.py --host 0.0.0.0` permite abrirlo desde otra computadora de la misma red, por ejemplo para que ambos integrantes trabajen sobre la misma base de datos.
 
+### Desde Visual Studio Code
+
+1. **Archivo → Abrir carpeta…** y elegir la carpeta del repositorio, la que contiene `README.md`, `prototipo/` y `servidor/`. No abrir solo `prototipo/` ni un archivo suelto.
+2. Instalar la extensión **Python** de Microsoft si VS Code la sugiere.
+3. Presionar **F5** (o ir a *Ejecutar y depurar* → **Iniciar prototipo Anémona** → ▶). El servidor arranca en la terminal de abajo y se abre el navegador en http://localhost:8000.
+4. Para detenerlo: el botón ■ rojo de arriba, o `Ctrl+C` en la terminal.
+
+Sin la extensión, también funciona desde la terminal de VS Code (**Terminal → Nueva terminal**): `python servidor/servidor.py` en Windows (o `py servidor/servidor.py`), y `python3 servidor/servidor.py` en Mac.
+
+> No use el botón ▶ sobre `app.js` ni «Open with Live Server» para la versión con base de datos: eso abre solo la interfaz, sin el servidor, y queda en modo demostración.
+
 ### Opción B — Modo demostración (sin servidor)
 
 Abra `prototipo/index.html` con doble clic. Funciona igual, pero los datos se guardan solo en ese navegador. La barra lateral indica en qué modo está.

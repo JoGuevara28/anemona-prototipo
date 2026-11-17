@@ -1,0 +1,34 @@
+{
+  // Botón «Ejecutar y depurar» (F5) de VS Code: inicia el servidor y abre el navegador.
+  // Requiere la extensión «Python» de Microsoft (VS Code la sugiere al abrir la carpeta).
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Iniciar prototipo Anémona",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/servidor/servidor.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "serverReadyAction": {
+        "pattern": "http://localhost:([0-9]+)",
+        "uriFormat": "http://localhost:%s",
+        "action": "openExternally"
+      }
+    },
+    {
+      "name": "Iniciar prototipo (datos de ejemplo desde cero)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/servidor/servidor.py",
+      "args": ["--reiniciar"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "serverReadyAction": {
+        "pattern": "http://localhost:([0-9]+)",
+        "uriFormat": "http://localhost:%s",
+        "action": "openExternally"
+      }
+    }
+  ]
+}
